@@ -1,0 +1,110 @@
+=== Harness initialized: 2026-03-19T21:39:27+09:00 ===
+Project type: java-maven
+
+=== Session 2026-03-19T22:00:00+09:00 ===
+Completed: Item 1 - Employee entity class
+Changes: Created src/main/java/com/example/employee/entity/Employee.java with 8 fields (id, name, email, department, salary, hireDate, createdAt, updatedAt), no-arg constructor, and getters/setters. mvn compile passes.
+Why: Mutable class required because MyBatis @Options(useGeneratedKeys=true) mutates the id field post-INSERT. Java records would fail since their fields are final.
+Discovered: No issues. Project structure clean, pom.xml already had all required dependencies.
+Difficulty: S — accurate estimate, straightforward implementation.
+
+=== Session 2026-03-19T22:30:00+09:00 ===
+Completed: Item 2 - DTO records (EmployeeRequest, EmployeeResponse, PageResponse)
+Changes: Created three Java records in com.example.employee.dto: EmployeeRequest (with @NotBlank/@Size on name/department, @Email on email, @NotNull/@DecimalMin("0") on salary, @NotNull on hireDate), EmployeeResponse (all 8 employee fields), PageResponse<T> (generic with content/currentPage/totalPages/totalElements).
+Why: Records are immutable value objects — correct for DTOs. @NotBlank already implies non-null for Strings so no need to add @NotNull separately. Salary uses BigDecimal so @DecimalMin("0") for non-negative constraint. mvn compile passes.
+Discovered: No issues. All dependencies (jakarta.validation) already present in pom.xml via spring-boot-starter-validation.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-19T23:00:00+09:00 ===
+Completed: Item 3 - Exception classes and GlobalExceptionHandler
+Changes: Created EmployeeNotFoundException, DuplicateEmailException (both extend RuntimeException), and GlobalExceptionHandler (@RestControllerAdvice). Handler uses Spring's ProblemDetail for RFC 7807 responses: 400 for MethodArgumentNotValidException (field errors joined with comma), 404 for EmployeeNotFoundException, 409 for DuplicateEmailException, 500 catch-all with logged stack trace but generic message. mvn compile passes.
+Why: ProblemDetail.forStatusAndDetail() sets type="about:blank" by default (RFC 7807). Field errors collected via getBindingResult().getFieldErrors() stream. Catch-all handler logs at ERROR level to avoid leaking internals while still enabling debugging.
+Discovered: No issues. Spring Boot 3.x includes ProblemDetail natively in spring-web.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-19T22:01:00+09:00 ===
+Completed: Item 4 - SQL schema and seed data
+Changes: Created src/main/resources/schema.sql (employees table with BIGINT GENERATED ALWAYS AS IDENTITY, UNIQUE email constraint, CHECK salary >= 0) and src/main/resources/data.sql (5 seed employees across Engineering/Marketing/HR/Finance/Sales). Added SchemaInitTest.java with 4 tests using plain JUnit 5 + Spring ResourceDatabasePopulator + H2 MODE=PostgreSQL (no @SpringBootApplication needed). All 4 tests pass.
+Why: BIGINT GENERATED ALWAYS AS IDENTITY is SQL standard and works with both PostgreSQL 10+ and H2 2.x. Used plain JUnit 5 instead of @JdbcTest because @JdbcTest requires @SpringBootConfiguration which doesn't exist until Item 9. ResourceDatabasePopulator lets us explicitly load schema.sql/data.sql against an H2 DataSource without a Spring context.
+Discovered: @JdbcTest requires @SpringBootConfiguration in the classpath even when no app config is needed — must use plain JUnit 5 tests until EmployeeApplication.java exists (Item 9).
+Difficulty: S — accurate estimate. SQL syntax was straightforward; the test approach needed one adaptation (JdbcTest → plain JUnit).
+
+=== Session 2026-03-19T22:05:00+09:00 ===
+Completed: Item 5 - MyBatis EmployeeMapper (annotations + XML)
+Changes: Created EmployeeMapper.java with 7 annotation-based methods (insert, findById, findAll, count, update, deleteById, findByEmail) and mapper/EmployeeMapper.xml with 2 dynamic SQL methods (search with <if> tags for name/department LIKE, countSearch). Added EmployeeMapperTest.java with 16 tests using plain MyBatis API (XMLMapperBuilder + EmbeddedDatabaseBuilder, no Spring context). All 20 tests pass.
+Why: Used SELECT * with mapUnderscoreToCamelCase=true to avoid verbose @Results annotations. XMLMapperBuilder.parse() both loads XML statements and auto-registers the mapper interface. generateUniqueName(true) on EmbeddedDatabaseBuilder prevents H2 name collisions between test methods. search/countSearch declared in interface without annotations and implemented entirely in XML for clean separation.
+Discovered: XMLMapperBuilder.parse() → bindMapperForNamespace() automatically calls config.addMapper(EmployeeMapper.class), registering annotation-based methods alongside XML methods — no need to call addMapper() separately. generateUniqueName(true) is the cleanest way to get isolated H2 DBs per test without name collision risk.
+Difficulty: M — accurate estimate. MyBatis standalone setup required careful ordering (XML parse before factory build).
+
+=== Session 2026-03-19T22:09:00+09:00 ===
+Completed: Item 6 - EmployeeService (+ Item 10 - Service unit tests, co-implemented)
+Changes: Created EmployeeService.java with 6 public methods (findAll, findById, create, update, delete, search). Timestamps set at service layer (createdAt+updatedAt on create; only updatedAt on update). Duplicate email check uses findByEmail; on update, allows same email if id matches. PageResponse.totalPages uses Math.ceil. Created EmployeeServiceTest.java with 16 Mockito-based unit tests covering all 6 methods including edge cases (own-email update, empty search results, offset calculation).
+Why: Service is the business logic hub — owns timestamp management (no JPA @PrePersist, no DB triggers), duplicate email guard (before mapper insert/update, not relying solely on UNIQUE constraint), and entity-to-DTO conversion. Item 10 colocated because tests were written alongside implementation, meeting the 70% test code target.
+Discovered: isEqualToIgnoringNanos() needed for createdAt/updatedAt equality because LocalDateTime.now() in test vs. service may differ at nanosecond level.
+Difficulty: M — accurate estimate. Mockito doAnswer for useGeneratedKeys simulation was the only non-trivial part.
+
+=== Session 2026-03-19T22:15:00+09:00 ===
+Completed: Item 7 - SecurityConfig
+Changes: Created src/main/java/com/example/employee/config/SecurityConfig.java with HTTP Basic auth, stateless sessions, CSRF disabled. In-memory users: admin/admin123 (ADMIN), user/user123 (USER). Role hierarchy ADMIN > USER via RoleHierarchyImpl.fromHierarchy(). Endpoint auth: GET requires USER, POST/PUT/DELETE require ADMIN. Spring Security 6.x lambda DSL throughout.
+Why: SecurityConfig must expose RoleHierarchy as a @Bean — Spring Security 6.3 auto-detects it for authorizeHttpRequests, so no manual expressionHandler wiring needed. expressionHandler() method is only available on the deprecated authorizeRequests() (SpEL-based), not the modern authorizeHttpRequests() (AuthorizationManager-based).
+Discovered: In Spring Security 6.x, expressionHandler() does NOT exist on AuthorizeHttpRequestsConfigurer. Register RoleHierarchy as a @Bean and Spring Boot 3.3.x / Spring Security 6.3.x picks it up automatically.
+Difficulty: S — accurate estimate. One compile error around expressionHandler() API change from SpEL-era to AuthorizationManager-era, resolved immediately.
+
+=== Session 2026-03-19T22:20:00+09:00 ===
+Completed: Item 8 - EmployeeController
+Changes: Created src/main/java/com/example/employee/controller/EmployeeController.java with 6 endpoints: GET /api/employees (paginated, page=0 default, size=10 default/max 100), GET /api/employees/{id}, POST /api/employees (201 Created with Location header), PUT /api/employees/{id}, DELETE /api/employees/{id} (204 No Content), GET /api/employees/search (name+department params, paginated). Uses @Valid on request bodies, @Min/@Max on pagination params. POST uses ServletUriComponentsBuilder for Location header.
+Why: Location header on POST (201) is REST best practice per RFC 7231. @Min/@Max on page/size enforce bounds at controller layer. @Valid triggers jakarta.validation constraints. All 36 existing tests still pass.
+Discovered: No new discoveries. Controller implementation straightforward given completed service layer.
+Difficulty: S — accurate estimate (marked M in plan but was simpler than expected given the service API was already clean).
+
+=== Session 2026-03-19T22:17:00+09:00 ===
+Completed: Item 9 - Application config files
+Changes: Created EmployeeApplication.java (main class with @SpringBootApplication), application.yml (PostgreSQL datasource with env-var placeholders, spring.sql.init.mode=never, virtual threads enabled, MyBatis mapper-locations + map-underscore-to-camel-case), application-test.yml in src/test/resources (H2 datasource with MODE=PostgreSQL, spring.sql.init.mode=always for schema/data script execution).
+Why: spring.sql.init.mode=never for production — PostgreSQL schema managed externally (not auto-initialized from schema.sql). spring.sql.init.mode=always for test — H2 needs schema.sql/data.sql to run. DB_CLOSE_DELAY=-1 in H2 URL keeps the in-memory DB alive for the entire test session. Env-var placeholders (${DB_USERNAME:postgres}) allow overriding without code changes while providing safe defaults.
+Discovered: No new discoveries. Item 9 was straightforward given the H2/PostgreSQL duality already resolved in CLARITY_LOG Round-3. The existing 36 tests all pass unchanged since they use plain JUnit 5 / Mockito (no Spring context).
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-19T22:22:00+09:00 ===
+Completed: Item 11 - Controller layer unit tests
+Changes: Created EmployeeControllerTest.java with 12 tests using @WebMvcTest(EmployeeController.class) + @Import(SecurityConfig.class) + @MockBean EmployeeService. Tests: findAll (USER), findById (USER), findById 404, create 201 (ADMIN), create 400 validation, create 409 duplicate email, update 200 (ADMIN), delete 204 (ADMIN), search (USER), unauthenticated 401, user POST 403, user DELETE 403. Also added maven-surefire-plugin with -Dnet.bytebuddy.experimental=true to pom.xml.
+Why: Maven runs on Java 25 (Homebrew OpenJDK) while Byte Buddy 1.14.19 only officially supports up to Java 23. @MockBean in @WebMvcTest triggers Byte Buddy instrumentation that fails without experimental mode. Existing @Mock/@ExtendWith tests worked because they hit a different instrumentation path (inline mock agent vs subclass creation). Setting net.bytebuddy.experimental=true allows Byte Buddy to work on Java 25 in experimental mode. @Import(SecurityConfig.class) pulls in the real security chain so @WithMockUser role checks are verified against actual ROLE_ADMIN/ROLE_USER rules.
+Discovered: @MockBean in @WebMvcTest fails on Java 25 without -Dnet.bytebuddy.experimental=true even though @Mock in @ExtendWith(MockitoExtension.class) works. Maven JAVA_HOME (Java 25 Homebrew) can differ from shell java -version (Java 22 Oracle).
+Difficulty: S — one compile cycle needed to discover the Byte Buddy/Java 25 issue; fix was a single surefire argLine addition.
+
+=== Session 2026-03-19T22:25:00+09:00 ===
+Completed: Item 12 - Integration tests
+Changes: Created EmployeeIntegrationTest.java with 12 tests using @SpringBootTest + @AutoConfigureMockMvc + @ActiveProfiles("test") + @Transactional. Tests cover: context loads, seed data verification (5 employees), pagination (page size, last page), findById seed employee, 404 for missing ID, full CRUD lifecycle (create->read->update->verify->delete->verify deleted), duplicate email on create (409), duplicate email on update (409), search by name (case-insensitive), search by department, total count after create+delete, invalid request validation (400). Uses httpBasic() with real credentials for authentic auth testing.
+Why: @Transactional on the test class ensures each test rolls back, preserving seed data isolation. httpBasic() tests the actual HTTP Basic auth flow end-to-end rather than bypassing with @WithMockUser. H2 with MODE=PostgreSQL in test profile ensures SQL compatibility.
+Discovered: No new discoveries. @SpringBootTest context reuse and @Transactional rollback worked as expected.
+Difficulty: L — accurate estimate. More test methods than typical S/M items but each was straightforward given the existing code.
+
+=== Session 2026-03-19T22:29:00+09:00 ===
+Completed: Item 13 - Search endpoint tests
+Changes: Created EmployeeSearchTest.java with 8 dedicated search tests: byNameOnly, byDepartmentOnly, byNameAndDepartment (AND match), byNameAndDepartment (AND no match), partialNameMatch case-insensitive, noMatchReturnsEmptyPage, paginatedResults (multi-page with 3 created employees), partialDepartmentMatch. All 68 tests pass (8 new + 60 existing).
+Why: Dedicated class keeps search coverage organized and separate from the general CRUD integration tests. @Transactional ensures test-created employees for pagination tests rollback cleanly. partialDepartmentMatch tests the LIKE '%neer%' → Engineering case, confirming the LOWER(CONCAT('%'...)) mapper implementation. Pagination test creates 3 employees in unique "SearchDept" department to avoid seed data interference.
+Discovered: No new discoveries. @SpringBootTest context is reused across EmployeeSearchTest and EmployeeIntegrationTest — startup time is negligible for the second class.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-19T22:35:00+09:00 ===
+Completed: Item 14 - Error handling tests
+Changes: Created EmployeeErrorHandlingTest.java with 5 dedicated GlobalExceptionHandler tests. Tests verify the complete ProblemDetail (RFC 7807) structure: type="about:blank", title, status, detail (exact message text), and instance (request URI path). Covers 400 validation (full ProblemDetail + field-error detail check), 404 not found (with exact detail message), 409 duplicate email on create (with exact detail message), 409 duplicate email on update (with exact instance path /api/employees/2). All 73 tests pass.
+Why: Existing tests (IntegrationTest, ControllerTest) verified status and title but not type and instance fields. This dedicated class ensures full RFC 7807 compliance is tested: type defaults to "about:blank" per ProblemDetail.forStatusAndDetail(), instance is set automatically by Spring MVC to the request URI. Exact detail messages verified against exception constructors to catch regressions.
+Discovered: No new discoveries. Spring MVC auto-sets the `instance` field in ProblemDetail to the request path — no explicit setInstance() call needed in GlobalExceptionHandler.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-19T22:40:00+09:00 ===
+BUILD COMPLETE: All 14 implementation plan items are DONE.
+Test suite: 73 tests, 0 failures, BUILD SUCCESS.
+No remaining TODO items in IMPLEMENTATION_PLAN.md.
+PHASE_1_COMPLETE marker already set.
+Harness recovery mode triggered because no commits possible — nothing left to implement.
+
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (35 criteria checked)
+  Coordinator: ALL PASS (6 modules checked)
+  Packer: ALL PASS (6 checks)
+  Learnings_Applied: 9 of 9
+Timestamp: 2026-03-19T22:50:00+09:00
+---

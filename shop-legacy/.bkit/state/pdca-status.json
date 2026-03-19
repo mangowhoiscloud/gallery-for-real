@@ -1,0 +1,161 @@
+{
+  "version": "2.0",
+  "lastUpdated": "2026-03-19T16:21:26.713Z",
+  "activeFeatures": [
+    "config",
+    "shop",
+    "domain",
+    "mapper"
+  ],
+  "primaryFeature": "config",
+  "features": {
+    "config": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T16:13:22.459Z",
+        "lastUpdated": "2026-03-19T16:15:21.404Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/shop-legacy/src/test/java/com/example/shop/config/TestConfig.java"
+    },
+    "shop": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T16:14:36.295Z",
+        "lastUpdated": "2026-03-19T16:16:05.288Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/shop-legacy/src/test/java/com/example/shop/AppConfigTest.java"
+    },
+    "domain": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T16:19:19.503Z",
+        "lastUpdated": "2026-03-19T16:21:22.614Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/shop-legacy/src/main/java/com/example/shop/domain/Product.java"
+    },
+    "mapper": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T16:19:23.317Z",
+        "lastUpdated": "2026-03-19T16:21:26.713Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/shop-legacy/src/main/java/com/example/shop/mapper/ProductMapper.java"
+    }
+  },
+  "pipeline": {
+    "currentPhase": 1,
+    "level": "Dynamic",
+    "phaseHistory": []
+  },
+  "session": {
+    "startedAt": "2026-03-19T15:55:48.502Z",
+    "onboardingCompleted": false,
+    "lastActivity": "2026-03-19T16:21:26.713Z"
+  },
+  "history": [
+    {
+      "timestamp": "2026-03-19T16:13:22.459Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:13:33.994Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:13:41.517Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:14:24.119Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:14:36.295Z",
+      "feature": "shop",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:15:03.317Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:15:08.641Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:15:21.404Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:16:05.288Z",
+      "feature": "shop",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:19:19.503Z",
+      "feature": "domain",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:19:23.317Z",
+      "feature": "mapper",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:19:51.749Z",
+      "feature": "mapper",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:21:22.614Z",
+      "feature": "domain",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T16:21:26.713Z",
+      "feature": "mapper",
+      "phase": "do",
+      "action": "updated"
+    }
+  ]
+}

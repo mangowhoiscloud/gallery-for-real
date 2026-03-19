@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.legacy.mapper.EmployeeMapper">
+
+    <resultMap id="employeeResultMap" type="Employee">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="email" column="email"/>
+        <result property="department" column="department"/>
+        <result property="salary" column="salary"/>
+        <result property="hireDate" column="hire_date"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="employeeResultMap">
+        SELECT id, name, email, department, salary, hire_date, created_at, updated_at
+        FROM employees
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findById" resultMap="employeeResultMap">
+        SELECT id, name, email, department, salary, hire_date, created_at, updated_at
+        FROM employees
+        WHERE id = #{id}
+    </select>
+
+    <!-- useGeneratedKeys returns the DB-generated PK back into employee.id -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO employees (name, email, department, salary, hire_date)
+        VALUES (#{name}, #{email}, #{department}, #{salary}, #{hireDate})
+    </insert>
+
+    <!-- Full replace of all user-supplied fields; updated_at set to now -->
+    <update id="update">
+        UPDATE employees
+        SET name        = #{name},
+            email       = #{email},
+            department  = #{department},
+            salary      = #{salary},
+            hire_date   = #{hireDate},
+            updated_at  = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM employees WHERE id = #{id}
+    </delete>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM employees
+    </select>
+
+    <!--
+        OR search: when both params are provided, a row matches if EITHER column matches.
+        Search is case-insensitive via LOWER(). At least one param is non-null (enforced
+        by the service layer), so the <choose> always produces a valid WHERE clause.
+    -->
+    <select id="searchByNameOrDepartment" resultMap="employeeResultMap">
+        SELECT id, name, email, department, salary, hire_date, created_at, updated_at
+        FROM employees
+        <where>
+            <choose>
+                <when test="name != null and department != null">
+                    (LOWER(name) LIKE LOWER(CONCAT('%', #{name}, '%'))
+                    OR LOWER(department) LIKE LOWER(CONCAT('%', #{department}, '%')))
+                </when>
+                <when test="name != null">
+                    LOWER(name) LIKE LOWER(CONCAT('%', #{name}, '%'))
+                </when>
+                <when test="department != null">
+                    LOWER(department) LIKE LOWER(CONCAT('%', #{department}, '%'))
+                </when>
+            </choose>
+        </where>
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countBySearch" resultType="int">
+        SELECT COUNT(*)
+        FROM employees
+        <where>
+            <choose>
+                <when test="name != null and department != null">
+                    (LOWER(name) LIKE LOWER(CONCAT('%', #{name}, '%'))
+                    OR LOWER(department) LIKE LOWER(CONCAT('%', #{department}, '%')))
+                </when>
+                <when test="name != null">
+                    LOWER(name) LIKE LOWER(CONCAT('%', #{name}, '%'))
+                </when>
+                <when test="department != null">
+                    LOWER(department) LIKE LOWER(CONCAT('%', #{department}, '%'))
+                </when>
+            </choose>
+        </where>
+    </select>
+
+    <select id="findByEmail" resultMap="employeeResultMap">
+        SELECT id, name, email, department, salary, hire_date, created_at, updated_at
+        FROM employees
+        WHERE email = #{email}
+    </select>
+
+</mapper>

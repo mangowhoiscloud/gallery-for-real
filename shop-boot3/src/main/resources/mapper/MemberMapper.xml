@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.shop.mapper.MemberMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO member (email, password, name, phone, address, role, active, created_at, updated_at)
+        VALUES (#{email}, #{password}, #{name}, #{phone}, #{address}, #{role}, #{active},
+                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="findByEmail" resultType="Member">
+        SELECT * FROM member WHERE email = #{email}
+    </select>
+
+    <select id="findById" resultType="Member">
+        SELECT * FROM member WHERE id = #{id}
+    </select>
+
+    <select id="findAll" resultType="Member">
+        SELECT * FROM member ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM member
+    </select>
+
+    <update id="update">
+        UPDATE member
+        SET name = #{name}, phone = #{phone}, address = #{address},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="deactivate">
+        UPDATE member
+        SET active = false, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

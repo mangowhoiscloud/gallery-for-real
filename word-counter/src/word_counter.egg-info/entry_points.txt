@@ -1,0 +1,2 @@
+[console_scripts]
+wc-freq = word_counter.cli:main

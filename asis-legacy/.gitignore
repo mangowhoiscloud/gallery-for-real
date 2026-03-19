@@ -1,0 +1,4 @@
+.harness-logs/
+*.bak
+.context/
+target/

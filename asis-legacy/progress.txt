@@ -1,0 +1,143 @@
+=== Harness initialized: 2026-03-19T21:39:25+09:00 ===
+Project type: java-maven
+
+=== Session 2026-03-19T21:54:16+09:00 ===
+Completed: Item 1 - Employee model class
+Changes: Created Employee.java in com.example.legacy.model with all 8 fields (id, name, email, department, salary, hireDate, createdAt, updatedAt). Added @JsonFormat annotations for date serialization: hireDate as "yyyy-MM-dd", createdAt/updatedAt as "yyyy-MM-dd'T'HH:mm:ss". Also fixed pom.xml jackson.version from 2.9.11.1 (nonexistent) to 2.9.10.8. Created EmployeeSerializationTest.java with 5 unit tests covering Jackson date serialization.
+Why: @JsonFormat defaults to UTC, but spec requires server timezone; ObjectMapper must call setTimeZone(TimeZone.getDefault()) to propagate local TZ to @JsonFormat patterns.
+Discovered: jackson-databind 2.9.11.1 does not exist in Maven Central — corrected to 2.9.10.8. All subsequent items should use this version.
+Difficulty: S as planned, but timezone subtlety added ~10 min debugging.
+
+=== Session 2026-03-19T22:10:00+09:00 ===
+Completed: Item 2 - Request/Response DTOs
+Changes: Created EmployeeRequest.java and ErrorResponse.java in com.example.legacy.dto. EmployeeRequest has 5 fields with validation annotations. ErrorResponse has status/message/timestamp fields plus nested FieldError inner class for validation error details.
+Why: javax.validation 1.1.0.Final lacks @NotBlank and @Email; used org.hibernate.validator.constraints for those two. Standard javax.validation.constraints used for @NotNull, @Size, @DecimalMin.
+Discovered: javax.validation 1.1 annotation gap — @NotBlank and @Email require Hibernate Validator's own constraints package in this stack.
+Difficulty: S as planned; 5 min to diagnose annotation package issue.
+
+=== Session 2026-03-19T22:00:00+09:00 ===
+Completed: Item 3 - Database schema and test resources
+Changes: Created src/main/resources/schema.sql (PostgreSQL DDL with BIGSERIAL), src/test/resources/schema.sql (H2-compatible DDL with BIGINT AUTO_INCREMENT), src/test/resources/application-test.properties (H2 in-memory MODE=PostgreSQL config).
+Why: Used separate DDL files per profile instead of relying on H2 PostgreSQL mode to support BIGSERIAL — avoids runtime DDL failures and is more explicit. H2 test schema uses DROP TABLE IF EXISTS + CREATE TABLE (no IF NOT EXISTS) to ensure clean state per test run.
+Discovered: No new discoveries. Followed plan: BIGINT AUTO_INCREMENT for H2, BIGSERIAL for PostgreSQL, MODE=PostgreSQL in JDBC URL for H2 compatibility.
+Difficulty: S as planned.
+
+=== Session 2026-03-19T22:03:00+09:00 ===
+Completed: Item 4 - Spring application and database configuration
+Changes: Created AppConfig.java (@Configuration, @ComponentScan, @PropertySource), DatabaseConfig.java (DBCP2 DataSource, SqlSessionFactoryBean with type aliases + mapper locations, DataSourceTransactionManager, static MapperScannerConfigurer), WebConfig.java (@EnableWebMvc, Jackson ObjectMapper with local TZ, CORS), WebInitializer.java (AbstractAnnotationConfigDispatcherServletInitializer), application.properties (PostgreSQL defaults).
+Why: MapperScannerConfigurer is a BeanDefinitionRegistryPostProcessor that runs before @Value properties are resolved — declared static @Bean to avoid premature injection failures. ObjectMapper configured with setTimeZone(TimeZone.getDefault()) per LEARNINGS.md for correct @JsonFormat behavior.
+Discovered: No new discoveries. Static @Bean pattern for MapperScannerConfigurer is the standard mitigation for BDRPP ordering issue.
+Difficulty: M as planned.
+
+=== Session 2026-03-19T22:06:00+09:00 ===
+Completed: Item 5 - Security configuration
+Changes: Created SecurityConfig.java (@EnableWebSecurity, extends WebSecurityConfigurerAdapter) with HTTP Basic auth, stateless sessions, CSRF disabled, in-memory users (admin/admin123 ADMIN, user/user123 USER), role-based URL patterns (GET requires USER|ADMIN, POST/PUT/DELETE requires ADMIN), custom AuthenticationEntryPoint (401 JSON) and AccessDeniedHandler (403 JSON). Created SecurityWebApplicationInitializer.java (extends AbstractSecurityWebApplicationInitializer) to register DelegatingFilterProxy. Updated WebInitializer.getRootConfigClasses() to include SecurityConfig.
+Why: AbstractSecurityWebApplicationInitializer is required for Java-config (no web.xml) to register the springSecurityFilterChain filter. SecurityConfig must be in the root context (not servlet context) so it applies to all requests before dispatch. Custom entry points return JSON ErrorResponse instead of default Spring Security HTML/Basic-challenge responses.
+Discovered: No new discoveries. Spring Security 4.2 in-memory auth with plain text passwords works without {noop} prefix (that prefix is Spring Security 5+).
+Difficulty: M as planned.
+
+=== Session 2026-03-19T22:15:00+09:00 ===
+Completed: Item 6 - EmployeeMapper interface and MyBatis XML
+Changes: Created EmployeeMapper.java interface in com.example.legacy.mapper with 9 methods (findAll, findById, insert, update, delete, countAll, searchByNameOrDepartment, countBySearch, findByEmail). @Param annotations on all multi-param methods. Created src/main/resources/mappers/EmployeeMapper.xml with resultMap for snake_case→camelCase column mapping and all 9 SQL statements. Search uses <choose> dynamic SQL for OR logic: both params → (name LIKE OR dept LIKE), one param → LIKE on that param only. Case-insensitive via LOWER(). INSERT uses useGeneratedKeys="true" keyProperty="id". UPDATE explicitly sets updated_at=CURRENT_TIMESTAMP.
+Why: resultMap needed because DB columns are snake_case (hire_date, created_at, updated_at) while Java fields are camelCase and mapUnderscoreToCamelCase is not enabled in config. <choose> for search avoids malformed SQL when one param is null (service enforces at-least-one-non-null invariant). CURRENT_TIMESTAMP used instead of NOW() for H2 compatibility in tests.
+Discovered: No new discoveries.
+Difficulty: M as planned.
+
+=== Session 2026-03-19T22:20:00+09:00 ===
+Completed: Item 7 - EmployeeValidator
+Changes: Created com.example.legacy.exception package with DuplicateEmailException, NotFoundException, BadRequestException. Created com.example.legacy.validation.EmployeeValidator (@Component) with validateCreate(email) and validateUpdate(currentId, email) methods. validateCreate throws DuplicateEmailException if email already exists; validateUpdate throws only if email belongs to a different employee (id mismatch).
+Why: Created all three exception classes now (not just DuplicateEmailException) because NotFoundException and BadRequestException are small, needed by Item 9 (service) and Item 10 (exception handler), and creating them now avoids a separate session for trivial boilerplate. EmployeeValidator takes EmployeeMapper via constructor injection for testability.
+Discovered: No new discoveries.
+Difficulty: S as planned.
+
+=== Session 2026-03-19T22:30:00+09:00 ===
+Completed: Item 8 - Test infrastructure
+Changes: Created TestAppConfig.java in src/test/java/com/example/legacy/config/ — standalone H2 config with DataSource (MODE=PostgreSQL), DataSourceInitializer (runs test schema.sql on context load), SqlSessionFactoryBean (same mapper XML path as production), DataSourceTransactionManager, and static MapperScannerConfigurer. Created BaseIntegrationTest.java in src/test/java/com/example/legacy/support/ — abstract base with @RunWith(SpringJUnit4ClassRunner.class), @ContextConfiguration(TestAppConfig.class), @Transactional for automatic per-test transaction rollback.
+Why: TestAppConfig is self-contained (no @ComponentScan, no property injection) to avoid conflicting with production DatabaseConfig/AppConfig beans. H2 in-memory DB with MODE=PostgreSQL and DROP TABLE IF EXISTS in schema.sql ensures clean state on every context load. @Transactional on BaseIntegrationTest rolls back data changes after each test method without needing explicit cleanup. DataSourceInitializer is the standard Spring 4.x mechanism for running schema scripts against an arbitrary DataSource.
+Discovered: No new discoveries. All existing tests continue to pass.
+Difficulty: S as planned.
+
+=== Session 2026-03-19T22:19:00+09:00 ===
+Completed: Item 9 - EmployeeService interface and implementation + Item 15 - EmployeeService unit tests
+Changes: Created PageResult<T> generic pagination wrapper in com.example.legacy.model. Created EmployeeService interface and EmployeeServiceImpl (@Service, @Transactional) in com.example.legacy.service with 6 methods: getAllEmployees, getEmployeeById, createEmployee, updateEmployee, deleteEmployee, searchEmployees. Created EmployeeServiceImplTest with 18 test methods using Mockito (zero Spring context needed).
+Why: After insert, re-fetch via findById to get DB-generated createdAt/updatedAt — avoids stale object with null timestamps. searchEmployees normalizes empty-string params to null so mapper <choose> logic works correctly (blank strings otherwise match the "both non-null" branch). PageResult totalPages uses Math.ceil to handle non-even division. Both Item 9 and Item 15 completed together since tests were written alongside implementation per 70% test rule.
+Discovered: No new discoveries. Mockito MockitoJUnitRunner triggers deprecation warning on Mockito 1.x @RunWith — expected for this stack, tests pass fine.
+Difficulty: M as planned.
+
+=== Session 2026-03-19T22:22:00+09:00 ===
+Completed: Item 10 - GlobalExceptionHandler
+Changes: Created GlobalExceptionHandler.java in com.example.legacy.controller with @ControllerAdvice. Handles MethodArgumentNotValidException→400 (with fieldErrors populated from BindingResult), NotFoundException→404, DuplicateEmailException→409, BadRequestException→400, generic Exception→500. ISO 8601 timestamp via LocalDateTime + DateTimeFormatter. Created GlobalExceptionHandlerTest.java with 6 unit tests using standalone MockMvc + inner TestController that throws each exception type. Validation test POSTs invalid JSON and asserts fieldErrors array is populated with correct field names and messages.
+Why: Using standaloneSetup (no Spring context) keeps the test fast and isolated. LocalDateTime.now().format(ISO_FORMATTER) is sufficient for this stack (Java 8, no timezone offset required by spec). @ExceptionHandler(Exception.class) is last resort only — more specific handlers take priority due to Spring's exception handler resolution order.
+Discovered: No new discoveries.
+Difficulty: S as planned.
+
+=== Session 2026-03-19T22:24:00+09:00 ===
+Completed: Item 11 - Model and DTO unit tests
+Changes: Created EmployeeRequestValidationTest.java (14 tests) covering all validation constraints on EmployeeRequest — valid request passes, blank/null/too-long name, blank/null/invalid email, blank/too-long department, null/negative salary, zero salary (boundary), null hireDate. Created ErrorResponseTest.java (8 tests) covering ErrorResponse constructor/setters, FieldError construction, JSON serialization of status/message/timestamp fields, fieldErrors as array, empty fieldErrors as [], null fieldErrors as JSON null. EmployeeSerializationTest.java (5 tests, from Item 1 session) already covered the Employee model portion.
+Why: Used Hibernate Validator directly via Validation.buildDefaultValidatorFactory() — no Spring context needed, tests are fast. javax.validation 1.1 + Hibernate Validator 5.x correctly evaluates @NotBlank/@Email (Hibernate) and @NotNull/@Size/@DecimalMin (javax.validation). ObjectMapper with no special config correctly serializes null list as JSON null and empty list as [].
+Discovered: No new discoveries. Jackson serializes null List<T> as JSON null (not omitted or []) by default — confirmed working as expected for spec.
+Difficulty: S as planned.
+
+=== Session 2026-03-19T22:35:00+09:00 ===
+Completed: Item 12 - EmployeeMapper integration tests
+
+=== Session 2026-03-19T22:45:00+09:00 ===
+Completed: Item 13 - EmployeeValidator unit tests
+Changes: Created EmployeeValidatorTest.java with 5 Mockito-based unit tests covering all 5 acceptance criteria: validateCreate with unique email (no throw), validateCreate with duplicate email (throws DuplicateEmailException), validateUpdate with own email same id (no throw), validateUpdate with another employee's email (throws), validateUpdate with entirely new email (no throw).
+Why: Pure unit test using MockitoJUnitRunner — no Spring context needed. Mockito mock of EmployeeMapper injected directly via constructor. @Test(expected=...) used for exception assertions (JUnit 4 style). verify() confirms findByEmail is called in success paths.
+Discovered: No new discoveries.
+Difficulty: S as planned.
+
+=== Session 2026-03-19T22:48:00+09:00 ===
+Completed: Item 14 - Security integration tests
+Changes: Created SecurityIntegrationTest.java (6 tests) using WebApplicationContext + SecurityMockMvcConfigurers.springSecurity(). Test config imports SecurityConfig and registers a stub @RestController at /api/employees. Tests: unauthenticated GET→401 JSON, unauthenticated POST→401 JSON, USER GET→200 (allowed), USER POST→403 JSON, ADMIN GET→200 (allowed), ADMIN POST→200 (allowed).
+Why: webAppContextSetup required (not standaloneSetup) because springSecurity() needs the full FilterChainProxy bean from WebApplicationContext to apply the security filter chain. Stub controller avoids dependency on Item 16 (EmployeeController) while still enabling realistic URL routing through security rules. Static inner TestConfig with @Import(SecurityConfig.class) + @EnableWebMvc is self-contained.
+Discovered: No new discoveries. Spring Security 4.2 + spring-security-test + @WebAppConfiguration works cleanly with this pattern.
+Difficulty: S as planned.
+
+=== Session 2026-03-19T22:50:00+09:00 ===
+Completed: Item 16 - EmployeeController
+Changes: Created EmployeeController.java in com.example.legacy.controller with @RestController @RequestMapping("/api/employees"). Six endpoints: GET / (list, page/size defaults 0/10), GET /{id}, POST / (201 + Location header via ServletUriComponentsBuilder), PUT /{id} (200 + updated employee), DELETE /{id} (204 no body), GET /search (name/department optional params + page/size). @Valid on @RequestBody for POST and PUT. Constructor injection of EmployeeService.
+Why: ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(id).toUri() is the Spring MVC idiom for generating Location headers from the current request's URL — avoids hardcoding the base URL. @Valid annotation delegates validation to GlobalExceptionHandler via MethodArgumentNotValidException. Constructor injection (not @Autowired field injection) for testability.
+Discovered: No new discoveries. All existing 82 tests continue to pass after adding the controller.
+Difficulty: S (simpler than M estimated — straightforward Spring MVC mapping with no surprises in this stack).
+
+=== Session 2026-03-19T23:00:00+09:00 ===
+Completed: Item 17 - Controller integration tests — CRUD operations
+Changes: Created EmployeeCrudIntegrationTest.java (8 tests) in src/test/java/com/example/legacy/controller/. Inner TestConfig composes @Import({TestAppConfig.class, SecurityConfig.class, WebConfig.class}) + explicit @Bean definitions for EmployeeValidator, EmployeeServiceImpl, EmployeeController, GlobalExceptionHandler. @Transactional at class level rolls back each test. @Before inserts a pre-seeded employee via EmployeeMapper directly. Tests: POST creates 201 with Location header, POST returns full body, POST duplicate email → 409, GET by id → 200, GET all → 200 with PageResult (content/totalElements/totalPages/currentPage), PUT → 200 with updated fields, DELETE → 204, GET after DELETE → 404. Total suite: 90 tests, 0 failures.
+Why: Composing TestAppConfig + SecurityConfig + WebConfig via @Import avoids @ComponentScan conflicts (which would pick up AppConfig and try to read production application.properties). Explicit @Bean definitions are more transparent and avoid component scan ordering issues. @Transactional test rollback ensures H2 DB is clean between tests without manual cleanup. Pre-seeding via EmployeeMapper (not MockMvc POST) avoids test setup going through the full HTTP/auth stack.
+Discovered: No new discoveries. Spring @Import of @Configuration classes with @EnableWebMvc works correctly in @WebAppConfiguration test contexts.
+Difficulty: M as planned; no surprises.
+
+=== Session 2026-03-19T23:00:00+09:00 ===
+Completed: Item 18 - Controller integration tests — Search and pagination
+Changes: Created EmployeeSearchPaginationIntegrationTest.java (8 tests). Seeds 3 employees (Alice/Engineering, Bob/Engineering, Carol/HR). Tests: name-only search returns 1 match, case-insensitive name search (ALICE→alice), department-only search returns 2 Engineering employees, name+department OR logic returns union of matches (3 total), no params returns 400, no-match returns empty PageResult (totalElements=0 totalPages=0), page=0&size=2 returns first 2 with totalPages=2, page=1&size=2 returns 1 remainder with currentPage=1. Total suite: 98 tests, 0 failures.
+Why: Used same TestConfig pattern as EmployeeCrudIntegrationTest (composing TestAppConfig + SecurityConfig + WebConfig + explicit @Bean declarations). @Transactional on class ensures H2 rollback per test. Direct mapper insert in setUp avoids auth stack for seed data. OR-logic test seeds name in HR, dept as Engineering so the union is all 3 employees — verifies the mapper <choose> OR branch.
+Discovered: No new discoveries. Existing infrastructure composed cleanly.
+Difficulty: M as planned; no surprises.
+
+=== Session 2026-03-19T23:03:00+09:00 ===
+Completed: Item 19 - Controller integration tests — Authentication and error handling
+Changes: Created EmployeeAuthErrorIntegrationTest.java (8 tests). Tests: unauthenticated GET→401 JSON (status/message/timestamp), user role POST→403 JSON, PUT non-existent id→404 JSON, DELETE non-existent id→404 JSON, POST blank name→400 with fieldErrors[0].field='name' and fieldErrors[0].message, POST invalid email→400 with fieldErrors[0].field='email', POST negative salary→400 with fieldErrors[0].field='salary', POST multiple violations (blank name+bad email+negative salary)→400 with fieldErrors.length≥3 each having field and message. Total suite: 106 tests, 0 failures.
+Why: Used same TestConfig composition pattern as Items 17/18 (TestAppConfig+SecurityConfig+WebConfig+explicit beans). Single-violation tests assert exact fieldErrors size=1 and fieldErrors[0].field value so regressions in exception handling are caught precisely. Multiple-violation test uses greaterThanOrEqualTo(3) instead of exact count because validator ordering is not guaranteed across Hibernate Validator versions. All 19 items are now DONE.
+Discovered: No new discoveries. All infrastructure composed cleanly as in previous sessions.
+Difficulty: M as planned; no surprises. Item 19 is the final item — all 19/19 items DONE.
+
+=== Session 2026-03-19T23:07:00+09:00 ===
+Status: ALL ITEMS COMPLETE — BUILD PHASE FINISHED
+All 19/19 items in IMPLEMENTATION_PLAN.md are DONE.
+Test suite: 106 tests, 0 failures, 0 skipped. BUILD SUCCESS.
+No remaining TODO items to implement.
+The build phase should transition to the next phase (e.g., review/deploy).
+PHASE_2_COMPLETE
+
+=== Session 2026-03-19T23:08:00+09:00 ===
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (30 criteria checked)
+  Coordinator: ALL PASS (14 modules checked)
+  Packer: ALL PASS (6 checks)
+  Learnings_Applied: 4 of 4
+Timestamp: 2026-03-19T14:08:00Z
+---

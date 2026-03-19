@@ -1,0 +1,16 @@
+=== Harness initialized: 2026-03-20T00:55:45+09:00 ===
+Project type: java-maven
+
+=== Session 2026-03-20T01:16:13+09:00 ===
+Completed: Item 1 - Project skeleton — Spring, MyBatis, DB schema, test infrastructure
+Changes: Created full project structure under src/. WebAppInitializer, AppConfig, WebConfig (Spring 4.3.4 + Spring Security 4.2.4 wiring). schema.sql with 6 tables (members, products, carts, cart_items, orders, order_items) compatible with PostgreSQL and H2 PostgreSQL mode. data.sql with admin seed. TestConfig with H2 in-memory (MODE=PostgreSQL). AppConfigTest: 7 tests all green (context loads, DataSource, SqlSessionFactory, TransactionManager, MapperScannerConfigurer, schema tables).
+Why: Used configLocation + mybatis-config.xml instead of setConfiguration() because mybatis-spring 1.2.2 doesn't have that method (added in 1.3.0). Used static @Bean for MapperScannerConfigurer per Spring docs for BeanDefinitionRegistryPostProcessor. H2 needs DATABASE_TO_LOWER=TRUE with lowercase table names in getTables() pattern (not toUpperCase()).
+Discovered: mybatis-spring 1.2.2 uses configLocation/XML for MyBatis settings, not programmatic setConfiguration(). Schema.sql with IF NOT EXISTS works in both PG and H2 PostgreSQL mode.
+Difficulty: M — estimate accurate. One compile error (setConfiguration), one test failure (table name case), both quickly fixed.
+
+=== Session 2026-03-20T01:20:00+09:00 ===
+Completed: Item 2 - Member entity and MyBatis mapper
+Changes: Member.java (domain entity with Role enum USER/ADMIN, java.util.Date timestamps), MemberMapper.java (interface: insert, selectById, selectByEmail, selectAll, update, delete, count), MemberMapper.xml (XML mapper with resultMap using EnumTypeHandler for Role, useGeneratedKeys for insert, LIMIT/OFFSET pagination), MemberMapperTest.java (9 tests: insert+selectById, selectByEmail, null on miss, update fields, delete, pagination, count, duplicate email constraint, admin role).
+Why: Used explicit resultMap with EnumTypeHandler for Role VARCHAR↔enum mapping. mapUnderscoreToCamelCase in mybatis-config.xml handles created_at→createdAt automatically. DataIntegrityViolationException catches H2 unique constraint violations. @Transactional on test class isolates each test.
+Discovered: H2 PostgreSQL mode supports LIMIT/OFFSET syntax. MyBatis EnumTypeHandler works with VARCHAR columns storing enum names. useGeneratedKeys=true correctly sets the id field on insert via keyProperty.
+Difficulty: S — estimate accurate. All 9 tests green first run.

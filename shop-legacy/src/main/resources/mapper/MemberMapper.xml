@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.shop.mapper.MemberMapper">
+
+    <resultMap id="memberResultMap" type="com.example.shop.domain.Member">
+        <id     property="id"        column="id"/>
+        <result property="email"     column="email"/>
+        <result property="password"  column="password"/>
+        <result property="name"      column="name"/>
+        <result property="phone"     column="phone"/>
+        <result property="address"   column="address"/>
+        <result property="role"      column="role"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.shop.domain.Member"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO members (email, password, name, phone, address, role)
+        VALUES (#{email}, #{password}, #{name}, #{phone}, #{address},
+                #{role, typeHandler=org.apache.ibatis.type.EnumTypeHandler})
+    </insert>
+
+    <select id="selectById" parameterType="long" resultMap="memberResultMap">
+        SELECT id, email, password, name, phone, address, role, created_at, updated_at
+        FROM members
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByEmail" parameterType="string" resultMap="memberResultMap">
+        SELECT id, email, password, name, phone, address, role, created_at, updated_at
+        FROM members
+        WHERE email = #{email}
+    </select>
+
+    <select id="selectAll" parameterType="map" resultMap="memberResultMap">
+        SELECT id, email, password, name, phone, address, role, created_at, updated_at
+        FROM members
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="update" parameterType="com.example.shop.domain.Member">
+        UPDATE members
+        SET name       = #{name},
+            phone      = #{phone},
+            address    = #{address},
+            password   = #{password},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete" parameterType="long">
+        DELETE FROM members WHERE id = #{id}
+    </delete>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM members
+    </select>
+
+</mapper>

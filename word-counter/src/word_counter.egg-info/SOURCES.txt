@@ -1,0 +1,16 @@
+pyproject.toml
+src/word_counter/__init__.py
+src/word_counter/cli.py
+src/word_counter/counter.py
+src/word_counter/formatter.py
+src/word_counter/tokenizer.py
+src/word_counter.egg-info/PKG-INFO
+src/word_counter.egg-info/SOURCES.txt
+src/word_counter.egg-info/dependency_links.txt
+src/word_counter.egg-info/entry_points.txt
+src/word_counter.egg-info/top_level.txt
+tests/test_cli.py
+tests/test_counter.py
+tests/test_formatter.py
+tests/test_integration.py
+tests/test_tokenizer.py

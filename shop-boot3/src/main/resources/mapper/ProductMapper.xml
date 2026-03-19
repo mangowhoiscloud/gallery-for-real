@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.shop.mapper.ProductMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product (name, description, price, stock_quantity, category, image_url, status, created_at, updated_at)
+        VALUES (#{name}, #{description}, #{price}, #{stockQuantity}, #{category}, #{imageUrl}, #{status},
+                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="findById" resultType="Product">
+        SELECT * FROM product WHERE id = #{id}
+    </select>
+
+    <select id="findAllActive" resultType="Product">
+        SELECT * FROM product WHERE status = 'ACTIVE'
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAllActive" resultType="int">
+        SELECT COUNT(*) FROM product WHERE status = 'ACTIVE'
+    </select>
+
+    <update id="update">
+        UPDATE product
+        SET name           = #{name},
+            description    = #{description},
+            price          = #{price},
+            stock_quantity = #{stockQuantity},
+            category       = #{category},
+            image_url      = #{imageUrl},
+            updated_at     = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE product
+        SET status     = 'INACTIVE',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <select id="search" resultType="Product">
+        SELECT * FROM product
+        <where>
+            status = 'ACTIVE'
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="minPrice != null">
+                AND price &gt;= #{minPrice}
+            </if>
+            <if test="maxPrice != null">
+                AND price &lt;= #{maxPrice}
+            </if>
+        </where>
+        <choose>
+            <when test="sortBy == 'name'">ORDER BY name</when>
+            <when test="sortBy == 'price'">ORDER BY price</when>
+            <otherwise>ORDER BY created_at</otherwise>
+        </choose>
+        <choose>
+            <when test="sortDir == 'asc'"> ASC</when>
+            <otherwise> DESC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countSearch" resultType="int">
+        SELECT COUNT(*) FROM product
+        <where>
+            status = 'ACTIVE'
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="minPrice != null">
+                AND price &gt;= #{minPrice}
+            </if>
+            <if test="maxPrice != null">
+                AND price &lt;= #{maxPrice}
+            </if>
+        </where>
+    </select>
+
+    <update id="decreaseStock">
+        UPDATE product
+        SET stock_quantity = stock_quantity - #{quantity},
+            updated_at    = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND stock_quantity >= #{quantity}
+    </update>
+
+    <update id="increaseStock">
+        UPDATE product
+        SET stock_quantity = stock_quantity + #{quantity},
+            updated_at    = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <select id="findDistinctCategories" resultType="string">
+        SELECT DISTINCT category FROM product WHERE status = 'ACTIVE' ORDER BY category
+    </select>
+
+</mapper>

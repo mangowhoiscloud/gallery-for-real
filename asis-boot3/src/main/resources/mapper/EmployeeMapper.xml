@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.employee.mapper.EmployeeMapper">
+
+    <select id="search" resultType="com.example.employee.entity.Employee">
+        SELECT * FROM employees
+        <where>
+            <if test="name != null and name != ''">
+                AND LOWER(name) LIKE LOWER(CONCAT('%', #{name}, '%'))
+            </if>
+            <if test="department != null and department != ''">
+                AND LOWER(department) LIKE LOWER(CONCAT('%', #{department}, '%'))
+            </if>
+        </where>
+        ORDER BY id
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*) FROM employees
+        <where>
+            <if test="name != null and name != ''">
+                AND LOWER(name) LIKE LOWER(CONCAT('%', #{name}, '%'))
+            </if>
+            <if test="department != null and department != ''">
+                AND LOWER(department) LIKE LOWER(CONCAT('%', #{department}, '%'))
+            </if>
+        </where>
+    </select>
+
+</mapper>

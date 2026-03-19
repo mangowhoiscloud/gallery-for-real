@@ -1,0 +1,357 @@
+{
+  "version": "2.0",
+  "lastUpdated": "2026-03-19T14:03:05.891Z",
+  "activeFeatures": [
+    "model",
+    "dto",
+    "config",
+    "mapper",
+    "exception",
+    "validation",
+    "support",
+    "service",
+    "controller"
+  ],
+  "primaryFeature": "model",
+  "features": {
+    "model": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T12:52:17.022Z",
+        "lastUpdated": "2026-03-19T13:17:57.422Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/main/java/com/example/legacy/model/PageResult.java"
+    },
+    "dto": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T12:56:31.833Z",
+        "lastUpdated": "2026-03-19T13:25:27.809Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/test/java/com/example/legacy/dto/ErrorResponseTest.java"
+    },
+    "config": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T13:02:37.876Z",
+        "lastUpdated": "2026-03-19T13:47:09.757Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/test/java/com/example/legacy/config/SecurityIntegrationTest.java"
+    },
+    "mapper": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T13:09:15.172Z",
+        "lastUpdated": "2026-03-19T13:28:04.494Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/test/java/com/example/legacy/mapper/EmployeeMapperTest.java"
+    },
+    "exception": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T13:11:35.483Z",
+        "lastUpdated": "2026-03-19T13:11:37.219Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/main/java/com/example/legacy/exception/BadRequestException.java"
+    },
+    "validation": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T13:11:44.660Z",
+        "lastUpdated": "2026-03-19T13:43:07.338Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/test/java/com/example/legacy/validation/EmployeeValidatorTest.java"
+    },
+    "support": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T13:15:11.335Z",
+        "lastUpdated": "2026-03-19T13:15:11.335Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/test/java/com/example/legacy/support/BaseIntegrationTest.java"
+    },
+    "service": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T13:18:00.895Z",
+        "lastUpdated": "2026-03-19T13:19:12.879Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/test/java/com/example/legacy/service/EmployeeServiceImplTest.java"
+    },
+    "controller": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-03-19T13:22:22.519Z",
+        "lastUpdated": "2026-03-19T14:03:05.891Z"
+      },
+      "lastFile": "/Users/pinxbot/Desktop/ralph_loop/examples/asis-legacy/src/test/java/com/example/legacy/controller/EmployeeAuthErrorIntegrationTest.java"
+    }
+  },
+  "pipeline": {
+    "currentPhase": 1,
+    "level": "Dynamic",
+    "phaseHistory": []
+  },
+  "session": {
+    "startedAt": "2026-03-19T12:41:54.387Z",
+    "onboardingCompleted": false,
+    "lastActivity": "2026-03-19T14:03:05.891Z"
+  },
+  "history": [
+    {
+      "timestamp": "2026-03-19T12:52:17.022Z",
+      "feature": "model",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T12:52:44.437Z",
+      "feature": "model",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T12:54:10.468Z",
+      "feature": "model",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T12:56:31.833Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T12:56:35.149Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T12:57:05.208Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:02:37.876Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:02:48.351Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:02:52.745Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:02:58.314Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:05:57.888Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:06:11.717Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:06:18.307Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:09:15.172Z",
+      "feature": "mapper",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:11:35.483Z",
+      "feature": "exception",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:11:36.709Z",
+      "feature": "exception",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:11:37.219Z",
+      "feature": "exception",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:11:44.660Z",
+      "feature": "validation",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:14:51.295Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:15:11.335Z",
+      "feature": "support",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:17:57.422Z",
+      "feature": "model",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:18:00.895Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:18:35.420Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:19:12.879Z",
+      "feature": "service",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:22:22.519Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:22:44.730Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:25:12.150Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:25:27.809Z",
+      "feature": "dto",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:28:04.494Z",
+      "feature": "mapper",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:43:07.338Z",
+      "feature": "validation",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:47:09.757Z",
+      "feature": "config",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:51:08.264Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T13:57:47.139Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T14:00:15.964Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-19T14:03:05.891Z",
+      "feature": "controller",
+      "phase": "do",
+      "action": "updated"
+    }
+  ]
+}

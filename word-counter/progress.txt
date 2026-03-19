@@ -1,0 +1,60 @@
+=== Harness initialized: 2026-03-19T20:22:47+09:00 ===
+Project type: python-uv
+
+=== Session 2026-03-19T20:30:00+09:00 ===
+Completed: Item 1 - Tokenizer module
+Changes: Added src/word_counter/tokenizer.py and tests/test_tokenizer.py (39 tests, all passing)
+Why: Single regex `[^\W_']+(?:'[^\W_']+)*` cleanly handles all word-definition rules:
+  - Unicode-aware alphanumeric (no underscore) via [^\W_']
+  - Intra-word apostrophes via the optional group (?:'[^\W_']+)*
+  - Leading/trailing apostrophes excluded by requiring alphanumeric at both ends
+  - Hyphens/underscores/punctuation act as natural splitters (not captured)
+  - Multiple consecutive hyphens produce no empty tokens
+Discovered: Package must be installed with `uv pip install -e .` before tests run;
+  ruff and mypy also need `uv add --dev` since pyproject.toml had no [dependency-groups].
+Difficulty: S as planned — implementation was one regex line, test count was the main effort.
+
+=== Session 2026-03-19T20:45:00+09:00 ===
+Completed: Item 2 - Counter module
+Changes: Added src/word_counter/counter.py (CountResult dataclass + count_words function) and tests/test_counter.py (20 tests, all passing)
+Why: Used collections.Counter for O(n) frequency counting; sort key (-count, word) handles both descending-count and ascending-alpha requirements in one pass. Dataclass gives free equality comparison needed in tests.
+Discovered: Nothing new — prior learnings about package install and dev tools still apply.
+Difficulty: S as planned.
+
+
+=== Session 2026-03-19T21:00:00+09:00 ===
+Completed: Item 3 - Formatter module
+Changes: Added src/word_counter/formatter.py (format_table function) and tests/test_formatter.py (21 tests, all passing)
+Why: Adaptive column widths computed from actual data; separator formula {rank_w+1}+{word_w+2}+{count_w+2}+{pct_w+1} derived by treating ` | ` separators as dashes+plus in the separator row. Percentages computed with total>0 guard for edge-case safety.
+Discovered: Nothing new — prior learnings still apply.
+Difficulty: S as planned.
+
+=== Session 2026-03-19T21:30:00+09:00 ===
+Completed: Item 4 - CLI module
+Changes: Added src/word_counter/cli.py (main() entry point + _positive_int + _build_parser) and tests/test_cli.py (28 tests, all passing)
+Why: Used argparse with custom _positive_int type to reject <=0 values at parse time. Reads stdin only when args.files is empty AND sys.stdin.isatty() is False, matching standard CLI convention. had_valid_input flag tracks whether any source succeeded; exits 1 only when no valid input. The pipeline is simply: tokenize → count_words → format_table → print.
+Discovered: ruff E741 forbids single-letter variable `l` in list comprehensions — use `ln` instead.
+Difficulty: M as planned — the logic was straightforward but careful stdin/TTY handling and error-path edge cases required all the test cases.
+
+=== Session 2026-03-19T22:00:00+09:00 ===
+Completed: Item 5 - Integration tests with test data
+Changes: Added tests/fixtures/ (7 files: simple.txt, second.txt, case_words.txt, apostrophes.txt, hyphens_underscores.txt, unicode_words.txt, empty.txt) and tests/test_integration.py (36 tests, all passing).
+Why: Used real fixture files with known content so tests verify exact output against ground-truth counts. One test class per clarity resolution ensures every spec decision from CLARITY_LOG.md is exercised end-to-end. Monkeypatched sys.stdin with io.StringIO for stdin tests (isatty() returns False on StringIO, matching CLI logic) to avoid subprocess/module invocation issues.
+Discovered: test_integration.py has full return type annotations (-> None on all methods) so mypy strict reports zero new errors; pre-existing errors in earlier test files are unchanged.
+Difficulty: M as planned — test count (36) exceeds minimum (15); mapping all 11 clarity resolutions to test classes was the main design effort.
+
+=== Session 2026-03-19T22:30:00+09:00 ===
+Status: ALL 5 ITEMS COMPLETE — PHASE_1_COMPLETE
+Verification: 144 tests passing, ruff clean, all items DONE in IMPLEMENTATION_PLAN.md
+Action: No remaining TODO items. Build phase is finished.
+Next: Harness should transition out of build phase.
+
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (25 criteria checked)
+  Coordinator: ALL PASS (18 modules checked)
+  Packer: ALL PASS (6 checks — 2 initially failed, fixed in-session: added README.md, populated __init__.py)
+  Learnings_Applied: 3 of 3
+Timestamp: 2026-03-19T23:00:00+09:00
+---
