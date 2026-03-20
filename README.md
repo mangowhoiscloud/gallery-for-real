@@ -1,6 +1,6 @@
 # Gallery for Real
 
-[harness-for-real(https://github.com/mangowhoiscloud/harness-for-real)가 자율 생성한 프로젝트 갤러리.
+[harness-for-real](https://github.com/mangowhoiscloud/harness-for-real)가 자율 생성한 프로젝트 갤러리.
 
 사람이 스펙만 제공하면, 하네스가 Socratic → Plan → Build → Verify 4페이즈를 거쳐 전체 코드를 자율 생성합니다.
 
