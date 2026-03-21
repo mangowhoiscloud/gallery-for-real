@@ -16,7 +16,7 @@
 
     <select id="findAllActive" resultType="Product">
         SELECT * FROM product WHERE status = 'ACTIVE'
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
@@ -66,8 +66,8 @@
             <otherwise>ORDER BY created_at</otherwise>
         </choose>
         <choose>
-            <when test="sortDir == 'asc'"> ASC</when>
-            <otherwise> DESC</otherwise>
+            <when test="sortDir == 'asc'"> ASC, id ASC</when>
+            <otherwise> DESC, id DESC</otherwise>
         </choose>
         LIMIT #{limit} OFFSET #{offset}
     </select>

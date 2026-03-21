@@ -42,7 +42,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: MemberMapperTest — insert and findByEmail, findById returns correct fields, update modifies name/phone/address, deactivate sets active=false, findAll returns paginated results.
 
 ## Item 3: Product Entity + DTOs + MyBatis Mapper
-- status: IN_PROGRESS
+- status: DONE
 - priority: P0
 - complexity: S
 - depends_on: [Item 1]
@@ -53,7 +53,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: ProductMapperTest — insert and findById, findAllActive excludes INACTIVE, softDelete changes status, search with keyword/category/price filters, decreaseStock reduces stockQuantity, pagination returns correct slices.
 
 ## Item 4: Cart Entities + DTOs + MyBatis Mapper
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: S
 - depends_on: [Item 1]
@@ -64,7 +64,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: CartMapperTest — insert cart, find by memberId. CartItemMapperTest — insert item, find items with product join (verify enriched fields), update quantity, delete single item, delete all items, unique constraint on (cartId, productId) prevents duplicates.
 
 ## Item 5: Order Entities + DTOs + MyBatis Mapper
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: S
 - depends_on: [Item 1]
@@ -75,7 +75,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: OrderMapperTest — insert order, findByMemberId paginated, findById with items joined, updateStatus changes status field, findAll with and without status filter. OrderItemMapperTest — batch insert items, find by orderId.
 
 ## Item 6: Security Configuration
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: M
 - depends_on: [Item 2]
@@ -86,7 +86,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: SecurityConfigTest — GET /api/products returns 200 without auth, GET /api/cart returns 401 without auth, POST /api/members returns 200 without auth (registration is open), GET /api/admin/orders returns 403 for USER role, inactive member credentials rejected.
 
 ## Item 7: Member Service + Controller + Tests
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: M
 - depends_on: [Item 2, Item 6]
@@ -97,7 +97,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: MemberControllerTest — register success (201), register duplicate email (409), register validation errors (400), login success (200 with member data), login wrong password (401), login inactive member (401), get profile (200), update profile (200, verify changes), deactivate account (204, subsequent login fails), admin list members (200 paginated), admin get member by id (200), user cannot access admin endpoints (403).
 
 ## Item 8: Product Service + Controller + Tests
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: M
 - depends_on: [Item 3, Item 6]
@@ -108,7 +108,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: ProductControllerTest — list products paginated (200, verify page structure), get product by id (200), get nonexistent product (404), admin create product (201), create with validation errors (400), admin update product (200), admin soft delete product (204, verify excluded from listing), search by keyword (200, correct results), search by category (200), search by price range (200), search with combined filters (200), user cannot create/update/delete (403), pagination size capped at 100.
 
 ## Item 9: Cart Service + Controller + Tests
-- status: TODO
+- status: DONE
 - priority: P1
 - complexity: M
 - depends_on: [Item 4, Item 7, Item 8]
@@ -119,7 +119,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: CartControllerTest — get empty cart (200, empty items, cartTotal=0), add item (201, verify enriched response), add same product again (increments quantity), add item exceeding stock (400), add inactive product (400), update quantity (200), update quantity exceeding stock (400), remove item (204), clear cart (204), cart shows inactive product status, verify subtotal and cartTotal calculations, unauthenticated access (401).
 
 ## Item 10: Order Service + Controller + Tests
-- status: TODO
+- status: DONE
 - priority: P1
 - complexity: L
 - depends_on: [Item 5, Item 9]
@@ -130,7 +130,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: OrderControllerTest — create order from cart (201, verify stock decreased, cart cleared, prices snapshotted), create order with empty cart (400), create order with inactive product in cart (400, lists affected items), create order with insufficient stock (400), get my orders paginated (200), get order detail (200, includes items), user cannot see other user's order (403 or 404), admin update status PENDING→CONFIRMED (200), admin skip status PENDING→SHIPPED (400), admin invalid backward transition (400), user cancel PENDING order (200, verify stock restored), user cancel non-PENDING order (400), admin list all orders (200 paginated), admin filter by status (200), concurrent order creation stock race (verify transactional integrity).
 
 ## Item 11: Login Page
-- status: TODO
+- status: DONE
 - priority: P2
 - complexity: S
 - depends_on: [Item 7]
@@ -140,7 +140,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: Manual browser verification. JS fetch calls use correct Authorization header format.
 
 ## Item 12: Product Listing + Detail Pages
-- status: TODO
+- status: DONE
 - priority: P2
 - complexity: M
 - depends_on: [Item 8]
@@ -150,7 +150,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: Manual browser verification. JS correctly constructs API URLs with query params.
 
 ## Item 13: Cart Page
-- status: TODO
+- status: DONE
 - priority: P2
 - complexity: M
 - depends_on: [Item 9]
@@ -160,7 +160,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5 → group_6
 - tests: Manual browser verification. JS handles inactive product display and API error responses.
 
 ## Item 14: Orders Page
-- status: TODO
+- status: DONE
 - priority: P2
 - complexity: M
 - depends_on: [Item 10]

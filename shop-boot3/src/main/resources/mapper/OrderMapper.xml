@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.shop.mapper.OrderMapper">
+
+    <!-- Full response map with nested items collection -->
+    <resultMap id="OrderResponseMap" type="com.example.shop.dto.OrderResponse">
+        <id     column="order_id"         property="id"/>
+        <result column="member_id"         property="memberId"/>
+        <result column="total_amount"      property="totalAmount"/>
+        <result column="status"            property="status"/>
+        <result column="shipping_address"  property="shippingAddress"/>
+        <result column="created_at"        property="createdAt"/>
+        <result column="updated_at"        property="updatedAt"/>
+        <collection property="items" ofType="com.example.shop.dto.OrderItemResponse" notNullColumn="item_id">
+            <constructor>
+                <arg column="item_id"      javaType="Long"                name="id"/>
+                <arg column="item_order_id" javaType="Long"               name="orderId"/>
+                <arg column="product_id"   javaType="Long"                name="productId"/>
+                <arg column="product_name" javaType="String"              name="productName"/>
+                <arg column="quantity"     javaType="Integer"             name="quantity"/>
+                <arg column="unit_price"   javaType="java.math.BigDecimal" name="unitPrice"/>
+            </constructor>
+        </collection>
+    </resultMap>
+
+    <insert id="insertOrder" parameterType="com.example.shop.entity.Order"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO orders (member_id, total_amount, status, shipping_address, created_at, updated_at)
+        VALUES (#{memberId}, #{totalAmount}, #{status}, #{shippingAddress},
+                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="findByMemberId" resultType="com.example.shop.entity.Order">
+        SELECT * FROM orders
+        WHERE member_id = #{memberId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByMemberId" resultType="int">
+        SELECT COUNT(*) FROM orders WHERE member_id = #{memberId}
+    </select>
+
+    <select id="findById" resultMap="OrderResponseMap">
+        SELECT
+            o.id              AS order_id,
+            o.member_id       AS member_id,
+            o.total_amount    AS total_amount,
+            o.status          AS status,
+            o.shipping_address AS shipping_address,
+            o.created_at      AS created_at,
+            o.updated_at      AS updated_at,
+            oi.id             AS item_id,
+            oi.order_id       AS item_order_id,
+            oi.product_id     AS product_id,
+            oi.product_name   AS product_name,
+            oi.quantity       AS quantity,
+            oi.unit_price     AS unit_price
+        FROM orders o
+        LEFT JOIN order_item oi ON oi.order_id = o.id
+        WHERE o.id = #{id}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE orders
+        SET status     = #{status},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <select id="findAll" resultType="com.example.shop.entity.Order">
+        SELECT * FROM orders
+        <where>
+            <if test="status != null and status != ''">
+                status = #{status}
+            </if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM orders
+        <where>
+            <if test="status != null and status != ''">
+                status = #{status}
+            </if>
+        </where>
+    </select>
+
+</mapper>

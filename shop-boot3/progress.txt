@@ -14,3 +14,112 @@ Changes: MemberRole enum (USER/ADMIN), Member entity class, MemberRegisterReques
 Why: Member is the base entity required by Items 6, 7, 9, 10. Entity is a plain class (not record) so MyBatis can use no-arg constructor + setters. DTOs are records per Java 21 convention. map-underscore-to-camel-case=true handles snake_case→camelCase mapping automatically including role→MemberRole enum via default EnumTypeHandler.
 Discovered: No new issues. H2 MODE=PostgreSQL supports LIMIT/OFFSET syntax. MyBatis 3.5.x built-in LocalDateTime type handler works correctly with H2 TIMESTAMP columns.
 Difficulty: S — accurate estimate.
+
+=== Session 2026-03-20T01:35:00+09:00 ===
+Completed: Item 3 - Product Entity + DTOs + MyBatis Mapper
+Changes: ProductStatus enum (ACTIVE/INACTIVE), Product entity class, ProductCreateRequest/ProductUpdateRequest/ProductResponse/ProductPageResponse DTO records (jakarta.validation), ProductMapper interface (@Mapper), ProductMapper.xml (insert/findById/findAllActive/countAllActive/update/softDelete/search/countSearch/decreaseStock/increaseStock/findDistinctCategories), ProductMapperTest (7 tests: insertAndFindById, findAllActive_excludesInactive, softDelete_changesStatusToInactive, search_withKeywordCategoryPriceFilters, decreaseStock_reducesStockQuantity, decreaseStock_failsWhenInsufficientStock, pagination_returnsCorrectSlices)
+Why: Product is a core entity required by Items 8, 9, 10. decreaseStock uses WHERE stock_quantity >= quantity to prevent negative stock atomically without a separate check. Search uses dynamic SQL with <if> tags for optional filters and <choose>/<when> for safe ORDER BY column selection.
+Discovered: No new issues. CONCAT('%', #{keyword}, '%') works in H2 MODE=PostgreSQL for LIKE wildcards. MyBatis enum handling for ProductStatus works identically to MemberRole.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-21T11:18:00+09:00 ===
+Completed: Item 5 - Order Entities + DTOs + MyBatis Mapper
+Changes: OrderStatus enum (PENDING/CONFIRMED/SHIPPED/DELIVERED/CANCELLED), Order entity class, OrderItem entity class, OrderCreateRequest/OrderStatusUpdateRequest/OrderItemResponse DTO records (jakarta.validation), OrderResponse plain class (not record — needed for MyBatis <collection> setter-based mapping), OrderPageResponse record, OrderMapper interface + OrderMapper.xml (insertOrder/findByMemberId/countByMemberId/findById with LEFT JOIN items/updateStatus/findAll with optional status filter/countAll), OrderItemMapper interface + OrderItemMapper.xml (insertOrderItem/findByOrderId), OrderMapperTest (6 tests: insertOrder+findByMemberId, findById no items returns empty list, findById with items joined, updateStatus, findAll with/without filter, paginated findByMemberId), OrderItemMapperTest (3 tests: batch insert+findByOrderId, empty order, snapshot name test). Also fixed ProductMapper.xml flaky pagination test by adding `id DESC` tiebreaker to ORDER BY clauses.
+Why: OrderResponse cannot be a record because MyBatis <collection> element requires setter-based field access to populate nested List<OrderItemResponse>. notNullColumn="item_id" on <collection> prevents null OrderItemResponse entries when LEFT JOIN finds no order_item rows. OrderItem has no unique constraint on (order_id, product_id) so the same product can appear multiple times in one order (snapshot design). Product pagination flakiness fixed by adding id as tiebreaker — all 5 products inserted in a single test have the same CURRENT_TIMESTAMP so ORDER BY created_at alone is non-deterministic.
+Discovered: MyBatis <collection> with nested records using <constructor> requires notNullColumn attribute to prevent null collection entries when LEFT JOIN has no matching rows. OrderResponse must be a plain class (not record) when it contains a nested collection that MyBatis needs to populate via setter.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-21T11:25:00+09:00 ===
+Completed: Item 6 - Security Configuration
+Changes: SecurityConfig.java (SecurityFilterChain: HTTP Basic, stateless, CSRF disabled, authorization rules), CustomUserDetailsService.java (UserDetailsService impl: loads by email, uses disabled() for inactive member detection), SecurityConfigTest.java (7 tests: public product endpoint not blocked, product search not blocked, registration not blocked, cart without auth returns 401, admin endpoint with USER role returns 403, admin endpoint with ADMIN role not blocked, inactive member returns 401)
+Why: SecurityConfig relies on CustomUserDetailsService and PasswordEncoder (already in AppConfig). Authorization order matters: POST /api/members and GET /api/products(/**) permitted before the catch-all /api/** authenticated rule. Using disabled(!member.getActive()) in User.builder() delegates inactive member rejection to Spring Security's DefaultPreAuthenticationChecks, which throws DisabledException → converted to 401 by BasicAuthenticationFilter. Tests use @Transactional for rollback and insert test members directly via MemberMapper; MockMvc runs in same thread so transaction-bound connection is visible to CustomUserDetailsService.
+Discovered: No new issues. Spring Security 6 auto-wires DaoAuthenticationProvider from UserDetailsService + PasswordEncoder beans without explicit configuration in SecurityConfig. @Transactional @SpringBootTest(webEnvironment=MOCK) tests share the same thread-bound DataSource connection with MockMvc request processing.
+Difficulty: M — accurate estimate.
+
+=== Session 2026-03-21T11:10:00+09:00 ===
+Completed: Item 4 - Cart Entities + DTOs + MyBatis Mapper
+Changes: Cart entity class, CartItem entity class, CartItemAddRequest/CartItemUpdateRequest/CartItemResponse/CartResponse DTO records (jakarta.validation), CartMapper interface + CartMapper.xml (insertCart/findByMemberId), CartItemMapper interface + CartItemMapper.xml (insertItem/findCartItems/findItemById/updateItemQuantity/deleteItem/deleteAllItems), CartMapperTest (2 tests: insertCart+findByMemberId, findByMemberId returns null when no cart), CartItemMapperTest (6 tests: insertItem+enriched response via JOIN, findItemById, updateItemQuantity, deleteItem removes only target, deleteAllItems clears cart, uniqueConstraint prevents duplicate product in cart)
+Why: Cart is 1:1 with Member (UNIQUE constraint on member_id). CartItem uses JOIN with product to return enriched CartItemResponse — subtotal computed as price*quantity in SQL. CartItemResponse is a record, so the MyBatis resultMap uses <constructor><arg> mapping with name attributes. findCartItems and findItemById share identical SELECT with JOIN; unique constraint test relies on Spring's DataIntegrityViolationException wrapping H2's unique violation.
+Discovered: MyBatis resultMap with constructor args for records requires name= attribute on each <arg> to match constructor parameter names. Without name=, MyBatis falls back to positional ordering which can fail on records with >2 fields. Java record parameter names are preserved in bytecode (Java 16+) so name-based mapping works correctly.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-21T11:35:00+09:00 ===
+Completed: Item 7 - Member Service + Controller + Tests
+Changes: MemberPageResponse record, MemberService (register/getProfile/updateProfile/deactivate/listMembers/getMemberById), MemberController (7 endpoints: POST /api/members, POST /api/members/login, GET/PUT/DELETE /api/members/me, GET /api/members, GET /api/members/{id}), @EnableMethodSecurity added to SecurityConfig, MemberControllerTest (15 tests).
+Why: Login endpoint (POST /api/members/login) requires HTTP Basic Auth via Spring Security — controller simply returns authenticated member's profile via @AuthenticationPrincipal. Admin-only GET /api/members and GET /api/members/{id} use @PreAuthorize("hasRole('ADMIN')") since path-level security cannot distinguish GET /api/members/me (USER) from GET /api/members (ADMIN) cleanly. deactivate_andSubsequentLoginFails test works within same @Transactional test because Spring Security reloads UserDetails from DB on each request — the deactivated member is visible via same transaction connection.
+Discovered: No new issues. @EnableMethodSecurity + @PreAuthorize works seamlessly alongside existing URL-based security rules. @Transactional @SpringBootTest tests can verify deactivation + subsequent auth failure in a single test because DB state is visible within the same transaction boundary.
+Difficulty: M — accurate estimate.
+
+=== Session 2026-03-21T11:31:00+09:00 ===
+Completed: Item 8 - Product Service, Controller, and tests
+Changes: ProductService.java (listActive/getById/create/update/softDelete/search with size cap at 100), ProductController.java (6 endpoints: GET /api/products, GET /api/products/search, GET /api/products/{id}, POST/PUT/DELETE /api/products/{id} with @PreAuthorize ADMIN), ProductControllerTest.java (20 tests: list paginated, get by id, not found, inactive by id, admin create/validate/update/update-404/softDelete/delete-404, search by keyword/category/price/combined, no-auth public access, user-403 for create/update/delete, pagination size cap)
+Why: GET endpoints are public per SecurityConfig (permitAll for GET /api/products/**). CUD operations use @PreAuthorize("hasRole('ADMIN')") on top of authentication requirement from /api/** rule. softDelete sets status=INACTIVE so product disappears from listing but is still retrievable by ID. size cap enforced in service layer (>100 → 100).
+Discovered: No new issues. Spring MVC correctly routes literal /search before /{id} path variable, so GET /api/products/search works without conflict. @PreAuthorize on controller methods works seamlessly with URL-based security.
+Difficulty: M — accurate estimate.
+
+=== Session 2026-03-21T11:37:00+09:00 ===
+Completed: Item 9 - Cart Service, Controller, and tests
+Changes: CartService.java (getCart/addItem/updateItem/removeItem/clearCart — auto-create cart on first access, stock validation, duplicate product increment, ownership verification), CartController.java (5 endpoints: GET /api/cart, POST /api/cart/items, PUT /api/cart/items/{itemId}, DELETE /api/cart/items/{itemId}, DELETE /api/cart), CartItemMapper.java + CartItemMapper.xml (added findEntityById and findItemByCartIdAndProductId), CartControllerTest.java (12 tests: empty cart, add item enriched response, increment duplicate, exceed stock, inactive product, update qty, update exceed stock, remove item, clear cart, inactive product status in cart, subtotal/cartTotal math, unauthenticated 401).
+Why: findEntityById returns raw CartItem entity (with cartId) for ownership validation in updateItem/removeItem — avoids iterating the full cart. findItemByCartIdAndProductId enables O(1) duplicate detection on addItem instead of loading all cart items. Cart is auto-created on first GET to avoid extra round-trips from clients. Service is @Transactional (no readOnly) since getCart itself may create a cart row. GlobalExceptionHandler maps IllegalArgumentException → 400 for stock/inactive validations.
+Discovered: No new issues. mapUnderscoreToCamelCase=true correctly maps cart_id/product_id columns to cartId/productId for CartItem entity in the new XML queries. com.jayway.jsonpath.JsonPath.read() is available via spring-boot-starter-test for extracting itemId from MvcResult response bodies.
+Difficulty: M — accurate estimate.
+
+=== Session 2026-03-21T11:42:00+09:00 ===
+Completed: Item 10 - Order Service, Controller, and tests
+Changes: OrderService.java (createOrder/getMyOrders/getOrderDetail/updateStatus/cancelOrder/getAllOrders — transactional cart-to-order with stock decrease, price snapshot, cart clear; strict linear status transitions PENDING→CONFIRMED→SHIPPED→DELIVERED; cancellation restores stock; ownership validation for detail/cancel), OrderController.java (6 endpoints: POST /api/orders, GET /api/orders, GET /api/orders/{id}, PUT /api/orders/{id}/status, PUT /api/orders/{id}/cancel, GET /api/admin/orders), OrderControllerTest.java (18 tests: create from cart with stock decrease + cart clear, price snapshot verification, empty cart 400, inactive product 400, insufficient stock 400, paginated my orders, detail with items, other user cannot see 404, admin PENDING→CONFIRMED, admin skip status 400, admin backward transition 400, user cancel PENDING restores stock, user cancel non-PENDING 400, admin list all paginated, admin filter by status, unauthenticated 401, user cannot access admin orders 403, user cannot update status 403).
+Why: Order creation validates all cart items atomically — collects all errors (inactive products + insufficient stock) before failing. Status transitions use pattern matching switch expression for clarity. cancelOrder restores stock via increaseStock mapper for each order item. getOrderDetail returns 404 (not 403) for non-owner to prevent order ID enumeration. Admin endpoints use @PreAuthorize("hasRole('ADMIN')") on controller methods while /api/admin/** is also secured at URL level in SecurityConfig.
+Discovered: No new issues. CartItemResponse enriched DTO provides productName/productPrice/productStatus needed for order creation validation and snapshot without extra product lookups. OrderMapper.findById with LEFT JOIN + resultMap correctly returns order with items for both service reads and post-mutation responses.
+Difficulty: L — accurate estimate.
+
+=== Session 2026-03-21T12:00:00+09:00 ===
+Completed: Item 11 - Login Page
+Changes: Created src/main/resources/static/login.html — tabbed Login/Register form. Login tab sends POST /api/members/login with Authorization: Basic header (btoa encoded). Register tab sends POST /api/members with JSON body. On success stores btoa(email:password) in sessionStorage and redirects to index.html. Already-authenticated users auto-redirect on page load. Inline error messages for 401/409/400/network errors. Clean minimal CSS, responsive, no framework dependency.
+Why: Static HTML served by Spring Boot (src/main/resources/static/). Auth flow uses HTTP Basic as specified — btoa(email:password) stored in sessionStorage so subsequent API calls can reconstruct the Authorization header. Registration returns 201 and auto-logins to save a round-trip. ProblemDetail error body parsed to extract readable messages for the user.
+Discovered: No new issues. Spring Boot serves static files from src/main/resources/static/ automatically without additional config. btoa() is available natively in all modern browsers.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-21T11:48:00+09:00 ===
+Completed: Item 12 - Product Listing + Detail Pages
+Changes: Created src/main/resources/static/index.html (product grid with category sidebar, search bar, pagination, nav; fetches /api/products or /api/products/search based on active filters; auto-loads categories from first page of products; escapes all user-visible strings; works with/without auth). Created src/main/resources/static/product.html (product detail with image, name, category badge, description, price, stock status; quantity +/- stepper capped at stockQuantity; "Add to Cart" calls POST /api/cart/items with Basic Auth; redirects to login if unauthenticated; 4-second auto-dismiss success/error alerts).
+Why: Static HTML pages served by Spring Boot without additional config. Auth follows same btoa(email:password) sessionStorage pattern as login.html. escHtml() prevents XSS for any user-visible product data. Category sidebar dynamically populated from first page of products (lightweight, no dedicated endpoint needed). Product detail page disables add-to-cart entirely for INACTIVE or out-of-stock products.
+Discovered: No new issues. Spring Boot static file serving works for all pages without additional MVC configuration. URLSearchParams correctly encodes query strings for both /api/products and /api/products/search.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-21T11:51:00+09:00 ===
+Completed: Item 13 - Cart Page
+Changes: Created src/main/resources/static/cart.html — full cart UI with item table (product image, name, inactive badge, price, quantity stepper, subtotal, remove button), cart total, "Clear Cart" button, and "Proceed to Order" flow via modal dialog that prompts for shipping address and calls POST /api/orders. Quantity changes call PUT /api/cart/items/{itemId} and re-fetch the full cart for consistent totals. Clear calls DELETE /api/cart. Auth guard redirects to login.html if no credentials in sessionStorage.
+Why: Modal for shipping address avoids a separate checkout page; keeps the single-page flow smooth. Full cart re-fetch after quantity change is simpler and more reliable than computing new subtotals in JS. Overlay modal dismisses on outside click for standard UX. Inactive product badge uses amber to distinguish from remove-button danger red. All user-visible strings escaped via escHtml() to prevent XSS.
+Discovered: No new issues. Same static-serving pattern and btoa sessionStorage auth pattern used in previous pages works correctly.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-21T12:10:00+09:00 ===
+Completed: Item 14 - Orders Page
+Changes: Created src/main/resources/static/orders.html — paginated orders list with inline expandable detail view. Each order card shows order ID, date, total amount, status badge, and item count. Clicking a card expands to fetch and show order items table (productName, unitPrice, qty, subtotal) plus shipping address. Cancel button visible only for PENDING orders — calls PUT /api/orders/{id}/cancel, invalidates detail cache, and reloads list. Pagination uses buildPageRange() with ellipsis for large page counts. Detail responses cached per orderId to avoid redundant API calls on re-expand.
+Why: Inline expansion (vs. navigation to a separate detail page) avoids page transitions and keeps the UX fluid. Detail cache prevents repeated API hits when a user opens/closes the same order multiple times. cancelOrder stops click propagation to prevent toggle triggering while the confirmation dialog is open. Auth guard + redirect to login.html follows the same sessionStorage-btoa pattern as other pages.
+Discovered: No new issues. Same static-serving pattern, auth, and escHtml XSS prevention used in previous pages works correctly.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-21T12:15:00+09:00 ===
+Status: ALL 14 ITEMS COMPLETE — IMPLEMENTATION PLAN FINISHED
+Build: mvn test — 106 tests, 0 failures, BUILD SUCCESS
+Summary: All items 1–14 implemented and committed. Backend (Items 1–10: entities, mappers, security, services, controllers with 106 tests) and frontend (Items 11–14: login, product listing/detail, cart, orders pages) are fully complete. No remaining TODO items in IMPLEMENTATION_PLAN.md. PHASE_1_COMPLETE marker present.
+BLOCKER: No more items to implement. The harness build loop should transition out of build phase.
+
+=== Session 2026-03-21T12:08:00+09:00 ===
+Phase 3: Final Verification
+
+Fixes applied during verification:
+1. Added "Add to Cart" button per product on index.html (spec compliance)
+2. Created README.md with prerequisites, setup, and run instructions
+3. Added Maven wrapper (mvnw, mvnw.cmd, .mvn/)
+4. Added production schema.sql with IF NOT EXISTS for idempotent init
+
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (131 criteria checked)
+  Coordinator: ALL PASS (5 categories checked)
+  Packer: ALL PASS (6 checks)
+  Learnings_Applied: 7 of 7
+Timestamp: 2026-03-21T12:08:39+09:00
+---

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop — Login / Register</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 1rem;
+      border: none;
+      background: none;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #888;
+      cursor: pointer;
+      transition: color 0.2s, border-bottom 0.2s;
+      border-bottom: 3px solid transparent;
+    }
+
+    .tab-btn.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: #555;
+    }
+
+    .tab-panel {
+      display: none;
+      padding: 2rem;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      color: #111;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #444;
+      margin-bottom: 0.35rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: #111;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.7rem;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: #1d4ed8;
+    }
+
+    .btn:disabled {
+      background: #93c5fd;
+      cursor: not-allowed;
+    }
+
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .alert-error {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+    }
+
+    .alert-success {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      color: #166534;
+    }
+
+    .alert { display: none; }
+    .alert.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" id="loginTabBtn" onclick="switchTab('login')">Login</button>
+      <button class="tab-btn" id="registerTabBtn" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- Login Panel -->
+    <div class="tab-panel active" id="loginPanel">
+      <h2>Welcome back</h2>
+
+      <div class="alert alert-error" id="loginError"></div>
+      <div class="alert alert-success" id="loginSuccess"></div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn" id="loginBtn">Login</button>
+      </form>
+    </div>
+
+    <!-- Register Panel -->
+    <div class="tab-panel" id="registerPanel">
+      <h2>Create an account</h2>
+
+      <div class="alert alert-error" id="registerError"></div>
+      <div class="alert alert-success" id="registerSuccess"></div>
+
+      <form id="registerForm" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" placeholder="you@example.com" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="At least 8 characters" required autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label for="regName">Full Name</label>
+          <input type="text" id="regName" placeholder="Your name" required>
+        </div>
+        <div class="form-group">
+          <label for="regPhone">Phone (10–15 digits)</label>
+          <input type="tel" id="regPhone" placeholder="01012345678" required>
+        </div>
+        <div class="form-group">
+          <label for="regAddress">Address</label>
+          <input type="text" id="regAddress" placeholder="123 Main St, Seoul" required>
+        </div>
+        <button type="submit" class="btn" id="registerBtn">Create Account</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Redirect already-authenticated users
+    (function () {
+      if (sessionStorage.getItem('credentials')) {
+        window.location.replace('index.html');
+      }
+    })();
+
+    function switchTab(tab) {
+      document.getElementById('loginPanel').classList.toggle('active', tab === 'login');
+      document.getElementById('registerPanel').classList.toggle('active', tab === 'register');
+      document.getElementById('loginTabBtn').classList.toggle('active', tab === 'login');
+      document.getElementById('registerTabBtn').classList.toggle('active', tab === 'register');
+    }
+
+    function showAlert(id, message, visible) {
+      const el = document.getElementById(id);
+      el.textContent = message;
+      el.classList.toggle('show', visible);
+    }
+
+    function hideAlerts(...ids) {
+      ids.forEach(id => document.getElementById(id).classList.remove('show'));
+    }
+
+    function basicAuth(email, password) {
+      return 'Basic ' + btoa(email + ':' + password);
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      hideAlerts('loginError', 'loginSuccess');
+
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('loginBtn');
+
+      btn.disabled = true;
+      btn.textContent = 'Logging in…';
+
+      try {
+        const res = await fetch('/api/members/login', {
+          method: 'POST',
+          headers: {
+            'Authorization': basicAuth(email, password)
+          }
+        });
+
+        if (res.ok) {
+          sessionStorage.setItem('credentials', btoa(email + ':' + password));
+          showAlert('loginSuccess', 'Login successful! Redirecting…', true);
+          setTimeout(() => window.location.replace('index.html'), 600);
+        } else if (res.status === 401) {
+          showAlert('loginError', 'Invalid email or password. Please try again.', true);
+        } else {
+          const body = await res.json().catch(() => ({}));
+          showAlert('loginError', body.detail || 'Login failed. Please try again.', true);
+        }
+      } catch (err) {
+        showAlert('loginError', 'Network error. Please check your connection.', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      }
+    }
+
+    async function handleRegister(event) {
+      event.preventDefault();
+      hideAlerts('registerError', 'registerSuccess');
+
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const name = document.getElementById('regName').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const address = document.getElementById('regAddress').value.trim();
+
+      const btn = document.getElementById('registerBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating account…';
+
+      try {
+        const res = await fetch('/api/members', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name, phone, address })
+        });
+
+        if (res.status === 201) {
+          // Auto-login after registration
+          sessionStorage.setItem('credentials', btoa(email + ':' + password));
+          showAlert('registerSuccess', 'Account created! Redirecting…', true);
+          setTimeout(() => window.location.replace('index.html'), 600);
+        } else if (res.status === 409) {
+          showAlert('registerError', 'That email is already registered. Please log in.', true);
+        } else if (res.status === 400) {
+          const body = await res.json().catch(() => ({}));
+          const detail = body.detail || extractValidationErrors(body);
+          showAlert('registerError', detail || 'Please check your input and try again.', true);
+        } else {
+          showAlert('registerError', 'Registration failed. Please try again.', true);
+        }
+      } catch (err) {
+        showAlert('registerError', 'Network error. Please check your connection.', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    }
+
+    function extractValidationErrors(body) {
+      // Spring Boot ProblemDetail may include an 'errors' extension with field violations
+      if (body.errors && Array.isArray(body.errors)) {
+        return body.errors.map(e => e.message || e.defaultMessage).join('; ');
+      }
+      return null;
+    }
+  </script>
+</body>
+</html>

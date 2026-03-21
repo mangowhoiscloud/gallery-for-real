@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop — My Orders</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #111;
+    }
+
+    /* Nav */
+    nav {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .nav-links { display: flex; gap: 0.75rem; align-items: center; }
+
+    .nav-link {
+      color: #555;
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+
+    .nav-link:hover { background: #f0f4ff; color: #2563eb; }
+    .nav-link.current { color: #2563eb; font-weight: 600; }
+
+    /* Page */
+    .page-wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: #111;
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .alert.show { display: block; }
+
+    .alert-error {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+    }
+
+    .alert-success {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      color: #166534;
+    }
+
+    /* Loading / empty */
+    .status-msg {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 24px; height: 24px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 0.5rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Order list */
+    .order-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .order-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .order-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      user-select: none;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      transition: background 0.15s;
+    }
+
+    .order-header:hover { background: #fafafa; }
+
+    .order-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .order-id {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #111;
+    }
+
+    .order-date {
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    .order-total {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #111;
+    }
+
+    .order-items-count {
+      font-size: 0.82rem;
+      color: #6b7280;
+    }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 4px;
+      padding: 0.2rem 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .status-PENDING    { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .status-CONFIRMED  { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .status-SHIPPED    { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+    .status-DELIVERED  { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .status-CANCELLED  { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
+
+    .order-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-shrink: 0;
+    }
+
+    .btn-cancel {
+      padding: 0.35rem 0.75rem;
+      border: 1px solid #fca5a5;
+      background: #fff;
+      color: #dc2626;
+      border-radius: 5px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-cancel:hover { background: #fef2f2; }
+    .btn-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .chevron {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+
+    .chevron.open { transform: rotate(180deg); }
+
+    /* Order detail panel */
+    .order-detail {
+      display: none;
+      border-top: 1px solid #f3f4f6;
+    }
+
+    .order-detail.open { display: block; }
+
+    .detail-loading {
+      padding: 1.25rem 1.25rem;
+      color: #6b7280;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .detail-loading .loading-spinner {
+      width: 18px; height: 18px;
+      border-width: 2px;
+      margin: 0;
+    }
+
+    /* Items table inside detail */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .items-table thead th {
+      background: #f9fafb;
+      padding: 0.65rem 1.25rem;
+      text-align: left;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+    }
+
+    .items-table tbody td {
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.9rem;
+      vertical-align: middle;
+    }
+
+    .items-table tbody tr:last-child td { border-bottom: none; }
+
+    .shipping-info {
+      padding: 0.75rem 1.25rem 1rem;
+      font-size: 0.85rem;
+      color: #6b7280;
+      border-top: 1px solid #f3f4f6;
+    }
+
+    .shipping-info strong { color: #374151; }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .page-btn {
+      padding: 0.45rem 0.9rem;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #374151;
+      border-radius: 5px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .page-btn:hover:not(:disabled):not(.active) { background: #f0f4ff; border-color: #2563eb; color: #2563eb; }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; font-weight: 600; cursor: default; }
+
+    .page-info {
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">Shop</a>
+  <div class="nav-links">
+    <a href="cart.html" class="nav-link">Cart</a>
+    <a href="orders.html" class="nav-link current">Orders</a>
+    <span id="authLink"></span>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+  <h1>My Orders</h1>
+
+  <div class="alert alert-error" id="errorMsg"></div>
+  <div class="alert alert-success" id="successMsg"></div>
+
+  <div id="ordersContainer">
+    <div class="status-msg"><div class="loading-spinner"></div><br>Loading orders…</div>
+  </div>
+
+  <div id="paginationContainer"></div>
+</div>
+
+<script>
+  // ---- Auth ----
+  function getCredentials() { return sessionStorage.getItem('credentials'); }
+
+  function authHeaders() {
+    const creds = getCredentials();
+    const headers = { 'Content-Type': 'application/json' };
+    if (creds) headers['Authorization'] = 'Basic ' + creds;
+    return headers;
+  }
+
+  // Redirect if not logged in
+  (function guardAuth() {
+    if (!getCredentials()) window.location.replace('login.html');
+  })();
+
+  // ---- Nav ----
+  (function initNav() {
+    const link = document.getElementById('authLink');
+    link.innerHTML = '<a href="login.html" class="nav-link" onclick="logout(event)">Logout</a>';
+  })();
+
+  function logout(e) {
+    e.preventDefault();
+    sessionStorage.removeItem('credentials');
+    window.location.replace('login.html');
+  }
+
+  // ---- Helpers ----
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtPrice(n) { return '₩' + Number(n).toLocaleString(); }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.toggle('show', !!msg);
+    if (msg) document.getElementById('successMsg').classList.remove('show');
+  }
+
+  function showSuccess(msg) {
+    const el = document.getElementById('successMsg');
+    el.textContent = msg;
+    el.classList.toggle('show', !!msg);
+    if (msg) {
+      document.getElementById('errorMsg').classList.remove('show');
+      setTimeout(() => el.classList.remove('show'), 4000);
+    }
+  }
+
+  // ---- State ----
+  let currentPage = 0;
+
+  // ---- Load orders (paginated) ----
+  async function loadOrders(page) {
+    page = page || 0;
+    currentPage = page;
+    showError('');
+    document.getElementById('ordersContainer').innerHTML =
+      '<div class="status-msg"><div class="loading-spinner"></div><br>Loading orders…</div>';
+    document.getElementById('paginationContainer').innerHTML = '';
+
+    try {
+      const res = await fetch(`/api/orders?page=${page}&size=10`, { headers: authHeaders() });
+      if (res.status === 401) { window.location.replace('login.html'); return; }
+      if (!res.ok) { showError('Failed to load orders. Please try again.'); document.getElementById('ordersContainer').innerHTML = ''; return; }
+
+      const data = await res.json();
+      renderOrders(data);
+      renderPagination(data);
+    } catch (_) {
+      showError('Network error. Please check your connection.');
+      document.getElementById('ordersContainer').innerHTML = '';
+    }
+  }
+
+  function renderOrders(data) {
+    const orders = data.content || [];
+    const container = document.getElementById('ordersContainer');
+
+    if (!orders.length) {
+      container.innerHTML = `
+        <div class="status-msg">
+          No orders yet.<br>
+          <a href="index.html" style="color:#2563eb;text-decoration:none;font-weight:600;">Browse products →</a>
+        </div>`;
+      return;
+    }
+
+    const html = orders.map(order => buildOrderCard(order)).join('');
+    container.innerHTML = `<div class="order-list">${html}</div>`;
+  }
+
+  function buildOrderCard(order) {
+    const isPending = order.status === 'PENDING';
+    const cancelBtn = isPending
+      ? `<button class="btn-cancel" onclick="cancelOrder(event, ${order.id})">Cancel</button>`
+      : '';
+
+    return `
+      <div class="order-card" id="order-card-${order.id}">
+        <div class="order-header" onclick="toggleDetail(${order.id})">
+          <div class="order-meta">
+            <span class="order-id">Order #${order.id}</span>
+            <span class="order-date">${escHtml(fmtDate(order.createdAt))}</span>
+            <span class="order-total">${fmtPrice(order.totalAmount)}</span>
+            <span class="order-items-count" id="items-count-${order.id}">Loading items…</span>
+          </div>
+          <div class="order-header-actions">
+            <span class="status-badge status-${escHtml(order.status)}">${escHtml(order.status)}</span>
+            ${cancelBtn}
+            <span class="chevron" id="chevron-${order.id}">▼</span>
+          </div>
+        </div>
+        <div class="order-detail" id="detail-${order.id}"></div>
+      </div>`;
+  }
+
+  // ---- Toggle detail ----
+  const detailCache = {};
+
+  async function toggleDetail(orderId) {
+    const detailEl = document.getElementById(`detail-${orderId}`);
+    const chevronEl = document.getElementById(`chevron-${orderId}`);
+    const isOpen = detailEl.classList.contains('open');
+
+    if (isOpen) {
+      detailEl.classList.remove('open');
+      chevronEl.classList.remove('open');
+      return;
+    }
+
+    detailEl.classList.add('open');
+    chevronEl.classList.add('open');
+
+    // Use cached detail if available
+    if (detailCache[orderId]) {
+      renderDetail(orderId, detailCache[orderId]);
+      return;
+    }
+
+    // Show loading
+    detailEl.innerHTML = '<div class="detail-loading"><div class="loading-spinner"></div> Loading items…</div>';
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, { headers: authHeaders() });
+      if (res.status === 401) { window.location.replace('login.html'); return; }
+      if (!res.ok) {
+        detailEl.innerHTML = '<div class="detail-loading">Failed to load order details.</div>';
+        return;
+      }
+      const order = await res.json();
+      detailCache[orderId] = order;
+      renderDetail(orderId, order);
+
+      // Update items count in header
+      const countEl = document.getElementById(`items-count-${orderId}`);
+      if (countEl) {
+        const n = (order.items || []).length;
+        countEl.textContent = n + ' item' + (n !== 1 ? 's' : '');
+      }
+    } catch (_) {
+      detailEl.innerHTML = '<div class="detail-loading">Network error. Could not load details.</div>';
+    }
+  }
+
+  function renderDetail(orderId, order) {
+    const detailEl = document.getElementById(`detail-${orderId}`);
+    const items = order.items || [];
+
+    let rows = '';
+    items.forEach(item => {
+      rows += `
+        <tr>
+          <td>${escHtml(item.productName)}</td>
+          <td style="text-align:right">${fmtPrice(item.unitPrice)}</td>
+          <td style="text-align:right">${item.quantity}</td>
+          <td style="text-align:right">${fmtPrice(Number(item.unitPrice) * item.quantity)}</td>
+        </tr>`;
+    });
+
+    detailEl.innerHTML = `
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th style="text-align:right">Unit Price</th>
+            <th style="text-align:right">Qty</th>
+            <th style="text-align:right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="shipping-info">
+        <strong>Shipping address:</strong> ${escHtml(order.shippingAddress || '')}
+      </div>`;
+  }
+
+  // ---- Cancel order ----
+  async function cancelOrder(e, orderId) {
+    e.stopPropagation(); // prevent detail toggle
+    if (!confirm('Cancel this order? Stock will be restored.')) return;
+
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'Cancelling…';
+    showError('');
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}/cancel`, {
+        method: 'PUT',
+        headers: authHeaders()
+      });
+
+      if (res.status === 401) { window.location.replace('login.html'); return; }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showError(body.detail || 'Failed to cancel order.');
+        btn.disabled = false;
+        btn.textContent = 'Cancel';
+        return;
+      }
+
+      // Invalidate cache and reload
+      delete detailCache[orderId];
+      showSuccess('Order cancelled. Stock has been restored.');
+      await loadOrders(currentPage);
+    } catch (_) {
+      showError('Network error. Please check your connection.');
+      btn.disabled = false;
+      btn.textContent = 'Cancel';
+    }
+  }
+
+  // ---- Pagination ----
+  function renderPagination(data) {
+    const { totalPages, currentPage: cp } = data;
+    if (totalPages <= 1) return;
+
+    const container = document.getElementById('paginationContainer');
+    let html = '<div class="pagination">';
+
+    html += `<button class="page-btn" ${cp === 0 ? 'disabled' : ''} onclick="loadOrders(${cp - 1})">← Prev</button>`;
+
+    // Show up to 7 page buttons with ellipsis logic
+    const pages = buildPageRange(cp, totalPages);
+    pages.forEach(p => {
+      if (p === '…') {
+        html += `<span class="page-info">…</span>`;
+      } else {
+        html += `<button class="page-btn ${p === cp ? 'active' : ''}" onclick="loadOrders(${p})">${p + 1}</button>`;
+      }
+    });
+
+    html += `<button class="page-btn" ${cp >= totalPages - 1 ? 'disabled' : ''} onclick="loadOrders(${cp + 1})">Next →</button>`;
+    html += '</div>';
+
+    container.innerHTML = html;
+  }
+
+  function buildPageRange(current, total) {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+    const pages = [];
+    const addPage = p => { if (!pages.includes(p) && p >= 0 && p < total) pages.push(p); };
+    addPage(0);
+    for (let i = current - 1; i <= current + 1; i++) addPage(i);
+    addPage(total - 1);
+    // Sort and insert ellipsis
+    pages.sort((a, b) => a - b);
+    const result = [];
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 0 && pages[i] - pages[i - 1] > 1) result.push('…');
+      result.push(pages[i]);
+    }
+    return result;
+  }
+
+  // ---- Init ----
+  loadOrders(0);
+</script>
+</body>
+</html>

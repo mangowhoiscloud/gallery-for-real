@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop — Cart</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #111;
+    }
+
+    /* Nav */
+    nav {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .nav-links { display: flex; gap: 0.75rem; align-items: center; }
+
+    .nav-link {
+      color: #555;
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+
+    .nav-link:hover { background: #f0f4ff; color: #2563eb; }
+    .nav-link.current { color: #2563eb; font-weight: 600; }
+
+    /* Page */
+    .page-wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: #111;
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .alert.show { display: block; }
+
+    .alert-error {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+    }
+
+    .alert-success {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      color: #166534;
+    }
+
+    /* Loading / empty */
+    .status-msg {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 24px; height: 24px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 0.5rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Cart card */
+    .cart-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+    }
+
+    tbody td {
+      padding: 0.875rem 1rem;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+      font-size: 0.95rem;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    tbody tr:hover { background: #fafafa; }
+
+    /* Product cell */
+    .product-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .item-img {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #e5e7eb;
+      flex-shrink: 0;
+    }
+
+    .item-img-placeholder {
+      width: 56px;
+      height: 56px;
+      border-radius: 6px;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      color: #9ca3af;
+    }
+
+    .item-name {
+      font-weight: 600;
+      color: #111;
+      font-size: 0.9rem;
+    }
+
+    .badge-inactive {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+    }
+
+    /* Quantity stepper */
+    .qty-stepper {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .qty-btn {
+      width: 28px;
+      height: 28px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #374151;
+      transition: background 0.15s;
+    }
+
+    .qty-btn:hover:not(:disabled) { background: #f0f4ff; border-color: #2563eb; color: #2563eb; }
+    .qty-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .qty-display {
+      min-width: 32px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    /* Remove button */
+    .btn-remove {
+      padding: 0.35rem 0.65rem;
+      border: 1px solid #fca5a5;
+      background: #fff;
+      color: #dc2626;
+      border-radius: 5px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-remove:hover { background: #fef2f2; }
+
+    /* Footer */
+    .cart-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-top: 2px solid #e5e7eb;
+      background: #f9fafb;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .cart-total {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #111;
+    }
+
+    .cart-total span {
+      color: #2563eb;
+    }
+
+    .footer-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 0.65rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    .btn-danger {
+      background: #fff;
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+    }
+
+    .btn-danger:hover { background: #fef2f2; }
+
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+      padding: 1rem;
+    }
+
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      width: 100%;
+      max-width: 420px;
+      padding: 1.75rem;
+    }
+
+    .modal h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #111;
+    }
+
+    .modal label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #444;
+      margin-bottom: 0.35rem;
+    }
+
+    .modal textarea {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .modal textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+      justify-content: flex-end;
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: #555;
+      border: 1px solid #d1d5db;
+    }
+
+    .btn-secondary:hover { background: #f5f5f5; }
+
+    .modal .alert-error { margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">Shop</a>
+  <div class="nav-links">
+    <a href="cart.html" class="nav-link current">Cart</a>
+    <a href="orders.html" class="nav-link">Orders</a>
+    <span id="authLink"></span>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+  <h1>Shopping Cart</h1>
+
+  <div class="alert alert-error" id="errorMsg"></div>
+  <div class="alert alert-success" id="successMsg"></div>
+
+  <div id="cartContainer">
+    <div class="status-msg"><div class="loading-spinner"></div><br>Loading cart…</div>
+  </div>
+</div>
+
+<!-- Order modal -->
+<div class="modal-overlay" id="orderModal">
+  <div class="modal">
+    <h2>Place Order</h2>
+    <label for="shippingAddress">Shipping Address</label>
+    <textarea id="shippingAddress" placeholder="Enter your full shipping address…" maxlength="200"></textarea>
+    <div class="alert alert-error" id="orderError"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeOrderModal()">Cancel</button>
+      <button class="btn btn-primary" id="confirmOrderBtn" onclick="confirmOrder()">Place Order</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- Auth ----
+  function getCredentials() { return sessionStorage.getItem('credentials'); }
+
+  function authHeaders(extra) {
+    const creds = getCredentials();
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+    if (creds) headers['Authorization'] = 'Basic ' + creds;
+    return headers;
+  }
+
+  // Redirect if not logged in
+  (function guardAuth() {
+    if (!getCredentials()) window.location.replace('login.html');
+  })();
+
+  // ---- Nav ----
+  (function initNav() {
+    const link = document.getElementById('authLink');
+    link.innerHTML = '<a href="login.html" class="nav-link" onclick="logout(event)">Logout</a>';
+  })();
+
+  function logout(e) {
+    e.preventDefault();
+    sessionStorage.removeItem('credentials');
+    window.location.replace('login.html');
+  }
+
+  // ---- Helpers ----
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtPrice(n) { return '₩' + Number(n).toLocaleString(); }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.toggle('show', !!msg);
+    if (msg) document.getElementById('successMsg').classList.remove('show');
+  }
+
+  function showSuccess(msg) {
+    const el = document.getElementById('successMsg');
+    el.textContent = msg;
+    el.classList.toggle('show', !!msg);
+    if (msg) document.getElementById('errorMsg').classList.remove('show');
+  }
+
+  // ---- Load cart ----
+  async function loadCart() {
+    showError('');
+    document.getElementById('cartContainer').innerHTML =
+      '<div class="status-msg"><div class="loading-spinner"></div><br>Loading cart…</div>';
+
+    try {
+      const res = await fetch('/api/cart', { headers: authHeaders() });
+      if (res.status === 401) { window.location.replace('login.html'); return; }
+      if (!res.ok) { showError('Failed to load cart. Please try again.'); document.getElementById('cartContainer').innerHTML = ''; return; }
+
+      const cart = await res.json();
+      renderCart(cart);
+    } catch (_) {
+      showError('Network error. Please check your connection.');
+      document.getElementById('cartContainer').innerHTML = '';
+    }
+  }
+
+  function renderCart(cart) {
+    const items = cart.items || [];
+    const container = document.getElementById('cartContainer');
+
+    if (!items.length) {
+      container.innerHTML = `
+        <div class="status-msg">
+          Your cart is empty.<br>
+          <a href="index.html" style="color:#2563eb;text-decoration:none;font-weight:600;">Browse products →</a>
+        </div>`;
+      return;
+    }
+
+    // Build table rows
+    let rows = '';
+    items.forEach(item => {
+      const inactive = item.productStatus !== 'ACTIVE';
+      const imgHtml = item.imageUrl
+        ? `<img class="item-img" src="${escHtml(item.imageUrl)}" alt="${escHtml(item.productName)}" loading="lazy">`
+        : `<div class="item-img-placeholder">🛍️</div>`;
+      const inactiveBadge = inactive ? '<span class="badge-inactive">Unavailable</span>' : '';
+
+      rows += `
+        <tr id="row-${item.itemId}">
+          <td>
+            <div class="product-cell">
+              ${imgHtml}
+              <div>
+                <div class="item-name">${escHtml(item.productName)}${inactiveBadge}</div>
+              </div>
+            </div>
+          </td>
+          <td>${fmtPrice(item.productPrice)}</td>
+          <td>
+            <div class="qty-stepper">
+              <button class="qty-btn" onclick="changeQty(${item.itemId}, ${item.quantity - 1})" ${item.quantity <= 1 ? 'disabled' : ''}>−</button>
+              <span class="qty-display" id="qty-${item.itemId}">${item.quantity}</span>
+              <button class="qty-btn" onclick="changeQty(${item.itemId}, ${item.quantity + 1})">+</button>
+            </div>
+          </td>
+          <td id="subtotal-${item.itemId}">${fmtPrice(item.subtotal)}</td>
+          <td>
+            <button class="btn-remove" onclick="removeItem(${item.itemId})">Remove</button>
+          </td>
+        </tr>`;
+    });
+
+    container.innerHTML = `
+      <div class="cart-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Price</th>
+              <th>Quantity</th>
+              <th>Subtotal</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cartBody">${rows}</tbody>
+        </table>
+        <div class="cart-footer">
+          <div class="cart-total">Total: <span id="cartTotal">${fmtPrice(cart.cartTotal)}</span></div>
+          <div class="footer-actions">
+            <button class="btn btn-danger" onclick="clearCart()">Clear Cart</button>
+            <button class="btn btn-primary" id="orderBtn" onclick="openOrderModal()">Proceed to Order</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ---- Quantity change ----
+  async function changeQty(itemId, newQty) {
+    if (newQty < 1) return;
+    showError('');
+
+    try {
+      const res = await fetch(`/api/cart/items/${itemId}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ quantity: newQty })
+      });
+
+      if (res.status === 401) { window.location.replace('login.html'); return; }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showError(body.detail || 'Could not update quantity.');
+        return;
+      }
+
+      // Re-fetch cart for consistent totals
+      await loadCart();
+    } catch (_) {
+      showError('Network error. Please check your connection.');
+    }
+  }
+
+  // ---- Remove item ----
+  async function removeItem(itemId) {
+    showError('');
+
+    try {
+      const res = await fetch(`/api/cart/items/${itemId}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+
+      if (res.status === 401) { window.location.replace('login.html'); return; }
+      if (!res.ok) { showError('Could not remove item.'); return; }
+
+      await loadCart();
+    } catch (_) {
+      showError('Network error. Please check your connection.');
+    }
+  }
+
+  // ---- Clear cart ----
+  async function clearCart() {
+    if (!confirm('Clear your entire cart?')) return;
+    showError('');
+
+    try {
+      const res = await fetch('/api/cart', {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+
+      if (res.status === 401) { window.location.replace('login.html'); return; }
+      if (!res.ok) { showError('Could not clear cart.'); return; }
+
+      await loadCart();
+      showSuccess('Cart cleared.');
+    } catch (_) {
+      showError('Network error. Please check your connection.');
+    }
+  }
+
+  // ---- Order modal ----
+  function openOrderModal() {
+    document.getElementById('shippingAddress').value = '';
+    document.getElementById('orderError').classList.remove('show');
+    document.getElementById('orderModal').classList.add('show');
+    document.getElementById('shippingAddress').focus();
+  }
+
+  function closeOrderModal() {
+    document.getElementById('orderModal').classList.remove('show');
+  }
+
+  // Close modal on overlay click
+  document.getElementById('orderModal').addEventListener('click', function(e) {
+    if (e.target === this) closeOrderModal();
+  });
+
+  async function confirmOrder() {
+    const address = document.getElementById('shippingAddress').value.trim();
+    const errEl = document.getElementById('orderError');
+    errEl.classList.remove('show');
+
+    if (!address) {
+      errEl.textContent = 'Please enter a shipping address.';
+      errEl.classList.add('show');
+      return;
+    }
+
+    if (address.length > 200) {
+      errEl.textContent = 'Address must be 200 characters or fewer.';
+      errEl.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('confirmOrderBtn');
+    btn.disabled = true;
+    btn.textContent = 'Placing order…';
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ shippingAddress: address })
+      });
+
+      if (res.status === 401) { window.location.replace('login.html'); return; }
+
+      if (res.status === 201) {
+        closeOrderModal();
+        showSuccess('Order placed successfully! Redirecting to your orders…');
+        setTimeout(() => window.location.replace('orders.html'), 1200);
+        return;
+      }
+
+      const body = await res.json().catch(() => ({}));
+      errEl.textContent = body.detail || 'Failed to place order. Please try again.';
+      errEl.classList.add('show');
+    } catch (_) {
+      errEl.textContent = 'Network error. Please check your connection.';
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Place Order';
+    }
+  }
+
+  // ---- Init ----
+  loadCart();
+</script>
+</body>
+</html>

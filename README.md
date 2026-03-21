@@ -11,8 +11,8 @@
 | [word-counter](word-counter/) | Python 3 + uv | 단어 빈도 분석 CLI | 스펙 2개 | 5모듈 + 5테스트 | 144 passed |
 | [asis-boot3](asis-boot3/) | Java 21 + Spring Boot 3.3.7 | Employee CRUD REST API | 스펙 1개 + pom.xml + CLAUDE.md | 14항목 | 73 tests, BUILD SUCCESS |
 | [asis-legacy](asis-legacy/) | Java 1.8 + Spring 4.3.4 | Employee CRUD REST API | 스펙 1개 + pom.xml + CLAUDE.md | 19항목 | 106 tests, BUILD SUCCESS |
-| [shop-boot3](shop-boot3/) | Java 21 + Spring Boot 3.3.7 | 쇼핑몰 MVP (4 CRUD + 프론트) | 스펙 5개 + pom.xml + CLAUDE.md | 진행 중 | 진행 중 |
-| [shop-legacy](shop-legacy/) | Java 1.8 + Spring 4.3.4 | 쇼핑몰 MVP (4 CRUD + 프론트) | 스펙 5개 + pom.xml + CLAUDE.md | 진행 중 | 진행 중 |
+| [shop-boot3](shop-boot3/) | Java 21 + Spring Boot 3.3.7 | 쇼핑몰 MVP (4 CRUD + 프론트) | 스펙 5개 + pom.xml + CLAUDE.md | 14항목 | 106 tests, BUILD SUCCESS |
+| [shop-legacy](shop-legacy/) | Java 1.8 + Spring 4.3.4 | 쇼핑몰 MVP (4 CRUD + 프론트) | 스펙 5개 + pom.xml + CLAUDE.md | 15항목 | 138 tests, BUILD SUCCESS |
 
 ## 구조
 

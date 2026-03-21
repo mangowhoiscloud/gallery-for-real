@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Products — ShopLegacy</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<div class="container">
+  <!-- Search bar -->
+  <div class="card mt-3" style="padding: 1rem;">
+    <form id="search-form" onsubmit="handleSearch(event)" style="display:flex;gap:0.5rem;">
+      <input type="text" id="search-input" placeholder="Search products…"
+             style="flex:1;padding:0.5rem 0.75rem;border:1px solid #ccc;border-radius:4px;font-size:0.95rem;">
+      <button type="submit" class="btn btn-primary">Search</button>
+      <button type="button" class="btn btn-secondary" onclick="clearSearch()">Clear</button>
+    </form>
+  </div>
+
+  <div class="page-layout">
+    <!-- Sidebar: categories -->
+    <aside class="sidebar">
+      <div class="card" style="padding:1rem;">
+        <h3 style="font-size:0.9rem;font-weight:700;color:#555;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.04em;">Categories</h3>
+        <div id="category-list">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <div id="alert-area"></div>
+      <div id="products-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <span id="results-info" class="text-muted"></span>
+      </div>
+      <div id="product-grid">
+        <div class="text-center mt-3"><span class="spinner"></span></div>
+      </div>
+      <div id="pagination" class="pagination"></div>
+    </main>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  /* State */
+  var state = {
+    keyword:  '',
+    category: null,
+    page:     0,
+    size:     12,
+    totalPages: 0
+  };
+
+  /* Boot */
+  App.renderNavbar('navbar');
+  loadCategories();
+  loadProducts();
+
+  /* ---- Categories ---- */
+  function loadCategories() {
+    App.apiCall('/api/products/categories').then(function (cats) {
+      var html = '<a href="#" class="category-link' + (!state.category ? ' active' : '') +
+        '" onclick="selectCategory(null,this);return false;" ' +
+        'style="display:block;padding:0.3rem 0;font-size:0.9rem;">All Products</a>';
+      cats.forEach(function (c) {
+        html += '<a href="#" class="category-link' + (state.category === c ? ' active' : '') +
+          '" onclick="selectCategory(' + JSON.stringify(c) + ',this);return false;" ' +
+          'style="display:block;padding:0.3rem 0;font-size:0.9rem;">' + App.escapeHtml(c) + '</a>';
+      });
+      document.getElementById('category-list').innerHTML = html;
+    }).catch(function () {
+      document.getElementById('category-list').innerHTML = '<span class="text-muted">Could not load categories.</span>';
+    });
+  }
+
+  function selectCategory(cat, el) {
+    state.category = cat;
+    state.page = 0;
+    /* Update active link styling */
+    document.querySelectorAll('.category-link').forEach(function (a) {
+      a.style.fontWeight = '';
+      a.style.color = '';
+    });
+    if (el) { el.style.fontWeight = '700'; el.style.color = '#2c3e50'; }
+    loadProducts();
+  }
+
+  /* ---- Search ---- */
+  function handleSearch(e) {
+    e.preventDefault();
+    state.keyword = document.getElementById('search-input').value.trim();
+    state.page = 0;
+    loadProducts();
+  }
+
+  function clearSearch() {
+    document.getElementById('search-input').value = '';
+    state.keyword = '';
+    state.page = 0;
+    loadProducts();
+  }
+
+  /* ---- Products ---- */
+  function loadProducts() {
+    document.getElementById('product-grid').innerHTML =
+      '<div class="text-center mt-3"><span class="spinner"></span></div>';
+    document.getElementById('pagination').innerHTML = '';
+
+    var params = 'page=' + state.page + '&size=' + state.size;
+    if (state.keyword)  params += '&keyword='  + encodeURIComponent(state.keyword);
+    if (state.category) params += '&category=' + encodeURIComponent(state.category);
+
+    App.apiCall('/api/products?' + params).then(function (data) {
+      state.totalPages = data.totalPages || 0;
+      renderProducts(data.content || []);
+      renderPagination(data.currentPage, data.totalPages, data.totalElements);
+      var info = 'Showing ' + (data.content ? data.content.length : 0) +
+        ' of ' + (data.totalElements || 0) + ' products';
+      document.getElementById('results-info').textContent = info;
+    }).catch(function (err) {
+      document.getElementById('product-grid').innerHTML =
+        '<p class="text-muted">Could not load products.</p>';
+      if (err.status !== 401) {
+        App.showAlert('alert-area', err.message || 'Failed to load products.', 'error');
+      }
+    });
+  }
+
+  function renderProducts(products) {
+    if (!products.length) {
+      document.getElementById('product-grid').innerHTML =
+        '<p class="text-muted mt-2">No products found.</p>';
+      return;
+    }
+
+    var html = '<div class="product-grid">';
+    products.forEach(function (p) {
+      var unavailable = p.status !== 'ACTIVE' || p.stockQuantity <= 0;
+      html += '<div class="product-card' + (unavailable ? ' unavailable' : '') + '">';
+
+      /* Image */
+      if (p.imageUrl) {
+        html += '<img src="' + App.escapeHtml(p.imageUrl) + '" alt="' + App.escapeHtml(p.name) + '">';
+      } else {
+        html += '<div class="product-img-placeholder">🛍</div>';
+      }
+
+      html += '<div class="product-body">';
+      html += '<div class="product-name">' +
+        '<a href="/static/product.html?id=' + p.id + '">' + App.escapeHtml(p.name) + '</a>' +
+        '</div>';
+      if (p.category) {
+        html += '<div class="product-category">' + App.escapeHtml(p.category) + '</div>';
+      }
+      html += '<div class="product-price">' + App.formatPrice(p.price) + '</div>';
+
+      if (p.status !== 'ACTIVE') {
+        html += '<div class="product-unavailable">Unavailable</div>';
+      } else if (p.stockQuantity <= 0) {
+        html += '<div class="product-unavailable">Out of stock</div>';
+      } else {
+        html += '<button class="btn btn-primary btn-sm btn-block" ' +
+          'onclick="addToCart(' + p.id + ', \'' + App.escapeHtml(p.name) + '\', this)">Add to Cart</button>';
+      }
+
+      html += '</div></div>';
+    });
+    html += '</div>';
+    document.getElementById('product-grid').innerHTML = html;
+  }
+
+  /* ---- Pagination ---- */
+  function renderPagination(current, total, totalElements) {
+    if (!total || total <= 1) {
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    var html = '';
+    html += '<button onclick="goPage(' + (current - 1) + ')" ' +
+      (current === 0 ? 'disabled' : '') + '>&#8249; Prev</button>';
+
+    var start = Math.max(0, current - 2);
+    var end   = Math.min(total - 1, current + 2);
+    for (var i = start; i <= end; i++) {
+      html += '<button onclick="goPage(' + i + ')"' +
+        (i === current ? ' class="active"' : '') + '>' + (i + 1) + '</button>';
+    }
+
+    html += '<button onclick="goPage(' + (current + 1) + ')" ' +
+      (current >= total - 1 ? 'disabled' : '') + '>Next &#8250;</button>';
+
+    document.getElementById('pagination').innerHTML = html;
+  }
+
+  function goPage(p) {
+    if (p < 0 || p >= state.totalPages) return;
+    state.page = p;
+    loadProducts();
+    window.scrollTo(0, 0);
+  }
+
+  /* ---- Add to Cart ---- */
+  function addToCart(productId, productName, btn) {
+    if (!App.isLoggedIn()) {
+      var returnUrl = encodeURIComponent(window.location.href);
+      window.location.href = '/static/login.html?return=' + returnUrl;
+      return;
+    }
+
+    var orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    App.clearAlert('alert-area');
+
+    App.apiCall('/api/cart/items', {
+      method: 'POST',
+      body: { productId: productId, quantity: 1 }
+    }).then(function () {
+      btn.textContent = 'Added!';
+      setTimeout(function () {
+        btn.disabled = false;
+        btn.textContent = orig;
+      }, 1500);
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = orig;
+      App.showAlert('alert-area', err.message || 'Could not add to cart.', 'error');
+    });
+  }
+</script>
+</body>
+</html>

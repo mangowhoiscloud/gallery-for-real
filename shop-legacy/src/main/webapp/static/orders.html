@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders — ShopLegacy</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<div class="container mt-3">
+  <h2>My Orders</h2>
+  <div id="alert-area"></div>
+
+  <div id="orders-content">
+    <div class="text-center mt-3"><span class="spinner"></span></div>
+  </div>
+
+  <div id="pagination-area" style="margin-top:1rem;"></div>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  App.requireAuth();
+  App.renderNavbar('navbar');
+
+  var currentPage = 0;
+  var pageSize = 10;
+  var totalPages = 0;
+
+  /* expanded order IDs → items already loaded */
+  var expandedOrders = {};
+
+  /* ---- Boot ---- */
+  loadOrders(0);
+
+  /* ---- Load Orders ---- */
+  function loadOrders(page) {
+    currentPage = page;
+    document.getElementById('orders-content').innerHTML =
+      '<div class="text-center mt-3"><span class="spinner"></span></div>';
+    document.getElementById('pagination-area').innerHTML = '';
+
+    App.apiCall('/api/orders?page=' + page + '&size=' + pageSize).then(function (data) {
+      totalPages = data.totalPages;
+      renderOrders(data.content || []);
+      renderPagination(data.currentPage, data.totalPages);
+    }).catch(function (err) {
+      if (err.status !== 401) {
+        document.getElementById('orders-content').innerHTML =
+          '<p class="text-muted">Could not load orders. Please try again.</p>';
+      }
+    });
+  }
+
+  /* ---- Render Order List ---- */
+  function renderOrders(orders) {
+    if (!orders.length) {
+      document.getElementById('orders-content').innerHTML =
+        '<div class="card" style="padding:2rem;text-align:center;">' +
+        '<p class="text-muted">You have no orders yet.</p>' +
+        '<a href="/static/index.html" class="btn btn-primary">Browse Products</a>' +
+        '</div>';
+      return;
+    }
+
+    var html = '<div class="card" style="overflow:hidden;">';
+    html += '<table class="table" style="width:100%;border-collapse:collapse;">';
+    html += '<thead><tr>' +
+      '<th style="text-align:left;padding:0.75rem;border-bottom:2px solid #eee;">Order</th>' +
+      '<th style="text-align:left;padding:0.75rem;border-bottom:2px solid #eee;">Date</th>' +
+      '<th style="text-align:right;padding:0.75rem;border-bottom:2px solid #eee;">Total</th>' +
+      '<th style="text-align:center;padding:0.75rem;border-bottom:2px solid #eee;">Status</th>' +
+      '<th style="text-align:center;padding:0.75rem;border-bottom:2px solid #eee;">Actions</th>' +
+      '</tr></thead>';
+    html += '<tbody id="orders-tbody">';
+
+    orders.forEach(function (order) {
+      html += renderOrderRow(order);
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('orders-content').innerHTML = html;
+  }
+
+  /* ---- Render a single order row + hidden detail row ---- */
+  function renderOrderRow(order) {
+    var dateStr = order.createdAt ? order.createdAt.substring(0, 10) : '—';
+    var html = '';
+
+    /* Main order row */
+    html += '<tr id="order-row-' + order.id + '" style="cursor:pointer;" ' +
+      'onclick="toggleDetail(' + order.id + ')">';
+
+    html += '<td style="padding:0.75rem;border-bottom:1px solid #eee;">' +
+      '<span style="font-family:monospace;font-size:0.85rem;">#' + order.id + '</span></td>';
+
+    html += '<td style="padding:0.75rem;border-bottom:1px solid #eee;">' +
+      App.escapeHtml(dateStr) + '</td>';
+
+    html += '<td style="text-align:right;padding:0.75rem;border-bottom:1px solid #eee;">' +
+      App.formatPrice(order.totalAmount) + '</td>';
+
+    html += '<td style="text-align:center;padding:0.75rem;border-bottom:1px solid #eee;">' +
+      App.statusBadge(order.status) + '</td>';
+
+    html += '<td style="text-align:center;padding:0.75rem;border-bottom:1px solid #eee;">';
+    if (order.status === 'PENDING') {
+      html += '<button class="btn btn-secondary btn-sm" ' +
+        'onclick="cancelOrder(event, ' + order.id + ')">Cancel</button>';
+    }
+    html += '</td>';
+
+    html += '</tr>';
+
+    /* Hidden detail row (initially collapsed) */
+    html += '<tr id="detail-row-' + order.id + '" style="display:none;">';
+    html += '<td colspan="5" style="padding:0;border-bottom:1px solid #eee;">';
+    html += '<div id="detail-content-' + order.id + '" ' +
+      'style="background:#f9f9f9;padding:1rem 1.25rem;">';
+
+    /* If items already available from list response, render immediately */
+    if (order.items && order.items.length) {
+      html += renderItemsTable(order);
+    } else {
+      html += '<span class="spinner"></span>';
+    }
+
+    html += '</div>';
+    html += '</td>';
+    html += '</tr>';
+
+    return html;
+  }
+
+  /* ---- Render items sub-table ---- */
+  function renderItemsTable(order) {
+    var html = '';
+
+    if (order.shippingAddress) {
+      html += '<p style="margin:0 0 0.75rem;font-size:0.9rem;">' +
+        '<strong>Shipping to:</strong> ' + App.escapeHtml(order.shippingAddress) + '</p>';
+    }
+
+    html += '<table style="width:100%;border-collapse:collapse;font-size:0.9rem;">';
+    html += '<thead><tr>' +
+      '<th style="text-align:left;padding:0.4rem 0.6rem;border-bottom:1px solid #ddd;">Product</th>' +
+      '<th style="text-align:right;padding:0.4rem 0.6rem;border-bottom:1px solid #ddd;">Unit Price</th>' +
+      '<th style="text-align:center;padding:0.4rem 0.6rem;border-bottom:1px solid #ddd;">Qty</th>' +
+      '<th style="text-align:right;padding:0.4rem 0.6rem;border-bottom:1px solid #ddd;">Subtotal</th>' +
+      '</tr></thead>';
+    html += '<tbody>';
+
+    (order.items || []).forEach(function (item) {
+      html += '<tr>';
+      html += '<td style="padding:0.4rem 0.6rem;border-bottom:1px solid #eee;">' +
+        '<a href="/static/product.html?id=' + item.productId + '">' +
+        App.escapeHtml(item.productName) + '</a></td>';
+      html += '<td style="text-align:right;padding:0.4rem 0.6rem;border-bottom:1px solid #eee;">' +
+        App.formatPrice(item.unitPrice) + '</td>';
+      html += '<td style="text-align:center;padding:0.4rem 0.6rem;border-bottom:1px solid #eee;">' +
+        item.quantity + '</td>';
+      html += '<td style="text-align:right;padding:0.4rem 0.6rem;border-bottom:1px solid #eee;">' +
+        App.formatPrice(item.subtotal) + '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody>';
+    html += '<tfoot><tr>' +
+      '<td colspan="3" style="text-align:right;padding:0.5rem 0.6rem;font-weight:700;">' +
+      'Order Total:</td>' +
+      '<td style="text-align:right;padding:0.5rem 0.6rem;font-weight:700;">' +
+      App.formatPrice(order.totalAmount) + '</td>' +
+      '</tr></tfoot>';
+    html += '</table>';
+
+    return html;
+  }
+
+  /* ---- Toggle inline detail expansion ---- */
+  function toggleDetail(orderId) {
+    var detailRow = document.getElementById('detail-row-' + orderId);
+    if (!detailRow) return;
+
+    var isVisible = detailRow.style.display !== 'none';
+    detailRow.style.display = isVisible ? 'none' : '';
+
+    if (!isVisible && !expandedOrders[orderId]) {
+      /* Need to fetch items if not already in the rendered content */
+      var contentDiv = document.getElementById('detail-content-' + orderId);
+      /* Check if we already rendered items (spinner would be gone) */
+      if (contentDiv && contentDiv.innerHTML.indexOf('<table') === -1) {
+        fetchOrderDetail(orderId, contentDiv);
+      } else {
+        expandedOrders[orderId] = true;
+      }
+    }
+  }
+
+  /* ---- Fetch order detail on demand ---- */
+  function fetchOrderDetail(orderId, contentDiv) {
+    App.apiCall('/api/orders/' + orderId).then(function (order) {
+      expandedOrders[orderId] = true;
+      contentDiv.innerHTML = renderItemsTable(order);
+    }).catch(function (err) {
+      contentDiv.innerHTML = '<p class="text-muted" style="margin:0;">Could not load order details.</p>';
+    });
+  }
+
+  /* ---- Cancel Order ---- */
+  function cancelOrder(event, orderId) {
+    event.stopPropagation(); /* don't expand/collapse row */
+
+    if (!confirm('Cancel order #' + orderId + '? This cannot be undone.')) return;
+
+    App.clearAlert('alert-area');
+
+    var btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Cancelling…';
+
+    App.apiCall('/api/orders/' + orderId + '/cancel', { method: 'PUT' }).then(function () {
+      App.showAlert('alert-area', 'Order #' + orderId + ' has been cancelled.', 'success');
+      loadOrders(currentPage);
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = 'Cancel';
+      App.showAlert('alert-area', err.message || 'Could not cancel order.', 'error');
+    });
+  }
+
+  /* ---- Render Pagination ---- */
+  function renderPagination(page, total) {
+    if (total <= 1) return;
+
+    var html = '<div class="pagination">';
+
+    html += '<button class="btn btn-secondary btn-sm"' +
+      (page === 0 ? ' disabled' : ' onclick="loadOrders(' + (page - 1) + ')"') +
+      '>&laquo; Prev</button>';
+
+    for (var i = 0; i < total; i++) {
+      var isActive = i === page;
+      html += '<button class="btn ' + (isActive ? 'btn-primary' : 'btn-secondary') + ' btn-sm"' +
+        (isActive ? ' disabled' : ' onclick="loadOrders(' + i + ')"') +
+        '>' + (i + 1) + '</button>';
+    }
+
+    html += '<button class="btn btn-secondary btn-sm"' +
+      (page >= total - 1 ? ' disabled' : ' onclick="loadOrders(' + (page + 1) + ')"') +
+      '>Next &raquo;</button>';
+
+    html += '</div>';
+    document.getElementById('pagination-area').innerHTML = html;
+  }
+</script>
+</body>
+</html>

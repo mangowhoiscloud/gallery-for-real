@@ -40,7 +40,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: MemberMapperTest — insert and selectById, selectByEmail, update fields, delete, selectAll with pagination, duplicate email insert fails (unique constraint).
 
 ## Item 3: Product entity and MyBatis mapper
-- status: IN_PROGRESS
+- status: DONE
 - priority: P0
 - complexity: S
 - depends_on: [Item 1]
@@ -51,7 +51,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: ProductMapperTest — insert and selectById, search by keyword, search by category, search by price range, search with sorting, updateStock increment/decrement, selectDistinctCategories, soft delete (status=INACTIVE) excluded from search.
 
 ## Item 4: Cart and CartItem entities and MyBatis mappers
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: S
 - depends_on: [Item 1]
@@ -62,7 +62,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: CartMapperTest + CartItemMapperTest — create cart, add items, select with product join, update quantity, delete single item, clear all items, unique constraint on duplicate product.
 
 ## Item 5: Order and OrderItem entities and MyBatis mappers
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: S
 - depends_on: [Item 1]
@@ -73,7 +73,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: OrderMapperTest + OrderItemMapperTest — create order with items, selectById includes items, paginated list by member, paginated list all, update status, batch insert order items.
 
 ## Item 6: Common DTOs — PageResponse, ErrorResponse, GlobalExceptionHandler
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: S
 - depends_on: [Item 1]
@@ -84,7 +84,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: PageResponseTest — serialization with Jackson. GlobalExceptionHandlerTest — MockMvc tests triggering each exception type and verifying response status + JSON body.
 
 ## Item 7: Spring Security configuration and CustomUserDetailsService
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: M
 - depends_on: [Item 2]
@@ -95,7 +95,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: SecurityConfigTest — unauthenticated access blocked, valid USER auth passes, valid ADMIN auth passes, USER accessing admin endpoint returns 403, BCrypt password verification works.
 
 ## Item 8: Member service and controller
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: M
 - depends_on: [Item 2, Item 6, Item 7]
@@ -106,7 +106,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: MemberControllerTest (MockMvc integration) — register success 201, register duplicate email 409, register invalid email 400, login success 200, login wrong password 401, get profile 200, update profile 200, delete member 204, delete member with active orders 409, admin list members paginated, admin get member by id, unauthenticated access 401.
 
 ## Item 9: Product service and controller
-- status: TODO
+- status: DONE
 - priority: P0
 - complexity: M
 - depends_on: [Item 3, Item 6, Item 7]
@@ -117,7 +117,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: ProductControllerTest (MockMvc integration) — list products paginated, get product by id, get nonexistent product 404, create product as admin 201, create product as user 403, update product, delete product (verify INACTIVE), search by keyword, search by category, search by price range, search with sort, get categories, validation errors 400.
 
 ## Item 10: Cart service and controller
-- status: TODO
+- status: DONE
 - priority: P1
 - complexity: M
 - depends_on: [Item 3, Item 4, Item 6, Item 7]
@@ -128,7 +128,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: CartControllerTest (MockMvc integration) — get empty cart, add item to cart, add same product merges quantity, add inactive product 400, add exceeding stock 400, update item quantity, update item exceeding stock 400, remove single item, clear cart, cart items show live product data, unauthenticated access 401, cannot modify another user's cart items.
 
 ## Item 11: Order service and controller
-- status: TODO
+- status: DONE
 - priority: P1
 - complexity: L
 - depends_on: [Item 3, Item 4, Item 5, Item 6, Item 7]
@@ -139,7 +139,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: OrderControllerTest (MockMvc integration) — create order success (verify stock decreased, cart cleared, prices snapshotted), create with empty cart 400, create with inactive product 400, create with insufficient stock 400 (verify no partial changes), create with shipping address, create with fallback to member address, create with no address 400, list my orders paginated, get order detail, get other user's order 403, admin get any order, update status valid transitions, update status invalid transition 400, cancel pending order (verify stock restored), cancel non-pending order 400, admin list all orders.
 
 ## Item 12: Login and Register frontend page
-- status: TODO
+- status: DONE
 - priority: P1
 - complexity: M
 - depends_on: [Item 8]
@@ -150,7 +150,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: Manual verification (no JUnit for static HTML). Acceptance verified during Phase 3 by loading pages and testing API integration.
 
 ## Item 13: Home and Product Detail frontend pages
-- status: TODO
+- status: DONE
 - priority: P1
 - complexity: M
 - depends_on: [Item 9, Item 12]
@@ -161,7 +161,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: Manual verification. Acceptance verified during Phase 3.
 
 ## Item 14: Cart frontend page
-- status: TODO
+- status: DONE
 - priority: P2
 - complexity: M
 - depends_on: [Item 10, Item 12]
@@ -172,7 +172,7 @@ Build_Order: group_1 → group_2 → group_3 → group_4 → group_5
 - tests: Manual verification. Acceptance verified during Phase 3.
 
 ## Item 15: Orders frontend page
-- status: TODO
+- status: DONE
 - priority: P2
 - complexity: M
 - depends_on: [Item 11, Item 12]

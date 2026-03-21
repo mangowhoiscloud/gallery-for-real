@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login / Register — ShopLegacy</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="auth-wrapper">
+  <div class="auth-box">
+    <h1>ShopLegacy</h1>
+
+    <!-- Tab buttons -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Login</button>
+      <button class="tab-btn" id="tab-register" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- Alert area (shared) -->
+    <div id="alert-area"></div>
+
+    <!-- Login form -->
+    <div id="panel-login" class="tab-panel active">
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
+        </div>
+        <div class="mt-2">
+          <button type="submit" class="btn btn-primary btn-block" id="login-btn">Login</button>
+        </div>
+      </form>
+      <p class="text-center mt-2 text-muted">
+        Don't have an account?
+        <a href="#" onclick="switchTab('register');return false;">Register here</a>
+      </p>
+    </div>
+
+    <!-- Register form -->
+    <div id="panel-register" class="tab-panel">
+      <form id="register-form" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label for="reg-email">Email <span style="color:#e74c3c">*</span></label>
+          <input type="email" id="reg-email" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Password <span style="color:#e74c3c">*</span></label>
+          <input type="password" id="reg-password" placeholder="Min 8 characters" required minlength="8" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label for="reg-name">Name <span style="color:#e74c3c">*</span></label>
+          <input type="text" id="reg-name" placeholder="Full name" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-phone">Phone</label>
+          <input type="tel" id="reg-phone" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label for="reg-address">Address</label>
+          <input type="text" id="reg-address" placeholder="Optional — used as default shipping address">
+        </div>
+        <div class="mt-2">
+          <button type="submit" class="btn btn-primary btn-block" id="register-btn">Create Account</button>
+        </div>
+      </form>
+      <p class="text-center mt-2 text-muted">
+        Already have an account?
+        <a href="#" onclick="switchTab('login');return false;">Login here</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  // If already logged in, skip to return URL or product list
+  (function () {
+    if (App.isLoggedIn()) {
+      var returnUrl = getReturnUrl();
+      window.location.href = returnUrl || '/static/index.html';
+    }
+
+    // Pre-select tab from query param: login.html?tab=register
+    var tab = getQueryParam('tab');
+    if (tab === 'register') {
+      switchTab('register');
+    }
+  }());
+
+  function getQueryParam(name) {
+    var params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  }
+
+  function getReturnUrl() {
+    var raw = getQueryParam('return');
+    if (!raw) return null;
+    try {
+      var url = decodeURIComponent(raw);
+      // Only allow same-origin return URLs
+      if (url.startsWith('/') || url.startsWith(window.location.origin)) {
+        return url;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function switchTab(name) {
+    ['login', 'register'].forEach(function (t) {
+      document.getElementById('tab-' + t).classList.toggle('active', t === name);
+      document.getElementById('panel-' + t).classList.toggle('active', t === name);
+    });
+    App.clearAlert('alert-area');
+  }
+
+  function setLoading(btnId, loading) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.textContent = loading
+      ? (btnId === 'login-btn' ? 'Logging in…' : 'Creating account…')
+      : (btnId === 'login-btn' ? 'Login' : 'Create Account');
+  }
+
+  function handleLogin(e) {
+    e.preventDefault();
+    App.clearAlert('alert-area');
+
+    var email    = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+
+    setLoading('login-btn', true);
+
+    App.login(email, password)
+      .then(function () {
+        var returnUrl = getReturnUrl();
+        window.location.href = returnUrl || '/static/index.html';
+      })
+      .catch(function (err) {
+        setLoading('login-btn', false);
+        var msg = (err.status === 401)
+          ? 'Invalid email or password.'
+          : (err.message || 'Login failed. Please try again.');
+        App.showAlert('alert-area', msg, 'error');
+      });
+  }
+
+  function handleRegister(e) {
+    e.preventDefault();
+    App.clearAlert('alert-area');
+
+    var email    = document.getElementById('reg-email').value.trim();
+    var password = document.getElementById('reg-password').value;
+    var name     = document.getElementById('reg-name').value.trim();
+    var phone    = document.getElementById('reg-phone').value.trim();
+    var address  = document.getElementById('reg-address').value.trim();
+
+    if (password.length < 8) {
+      App.showAlert('alert-area', 'Password must be at least 8 characters.', 'error');
+      return;
+    }
+
+    var data = { email: email, password: password, name: name };
+    if (phone)   data.phone   = phone;
+    if (address) data.address = address;
+
+    setLoading('register-btn', true);
+
+    App.register(data)
+      .then(function () {
+        // Auto-logged in; redirect
+        var returnUrl = getReturnUrl();
+        window.location.href = returnUrl || '/static/index.html';
+      })
+      .catch(function (err) {
+        setLoading('register-btn', false);
+        var msg;
+        if (err.status === 409) {
+          msg = 'An account with that email already exists.';
+        } else if (err.status === 400) {
+          msg = err.message || 'Please check your input and try again.';
+        } else {
+          msg = err.message || 'Registration failed. Please try again.';
+        }
+        App.showAlert('alert-area', msg, 'error');
+      });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.shop.mapper.OrderMapper">
+
+    <resultMap id="orderResultMap" type="com.example.shop.domain.Order">
+        <id     property="id"              column="id"/>
+        <result property="memberId"        column="member_id"/>
+        <result property="totalAmount"     column="total_amount"/>
+        <result property="status"          column="status"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="shippingAddress" column="shipping_address"/>
+        <result property="createdAt"       column="created_at"/>
+        <result property="updatedAt"       column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.shop.domain.Order"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO orders (member_id, total_amount, status, shipping_address)
+        VALUES (#{memberId}, #{totalAmount},
+                #{status, typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+                #{shippingAddress})
+    </insert>
+
+    <select id="selectById" parameterType="long" resultMap="orderResultMap">
+        SELECT id, member_id, total_amount, status, shipping_address, created_at, updated_at
+        FROM orders
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByMemberId" parameterType="map" resultMap="orderResultMap">
+        SELECT id, member_id, total_amount, status, shipping_address, created_at, updated_at
+        FROM orders
+        WHERE member_id = #{memberId}
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectAll" parameterType="map" resultMap="orderResultMap">
+        SELECT id, member_id, total_amount, status, shipping_address, created_at, updated_at
+        FROM orders
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="updateStatus" parameterType="map">
+        UPDATE orders
+        SET status     = #{status, typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <select id="countByMemberId" parameterType="long" resultType="int">
+        SELECT COUNT(*) FROM orders WHERE member_id = #{memberId}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM orders
+    </select>
+
+    <select id="countActiveByMemberId" parameterType="long" resultType="int">
+        SELECT COUNT(*) FROM orders
+        WHERE member_id = #{memberId}
+          AND status IN ('CONFIRMED', 'SHIPPED')
+    </select>
+
+    <select id="selectPendingByMemberId" parameterType="long" resultMap="orderResultMap">
+        SELECT id, member_id, total_amount, status, shipping_address, created_at, updated_at
+        FROM orders
+        WHERE member_id = #{memberId}
+          AND status = 'PENDING'
+    </select>
+
+    <delete id="deleteByMemberId" parameterType="long">
+        DELETE FROM orders WHERE member_id = #{memberId}
+    </delete>
+
+</mapper>

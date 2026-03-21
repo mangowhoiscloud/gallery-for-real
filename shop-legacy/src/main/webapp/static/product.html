@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product — ShopLegacy</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<div class="container" style="margin-top:1.5rem;">
+  <div id="alert-area"></div>
+
+  <!-- Back link -->
+  <a href="/static/index.html" style="font-size:0.9rem;">&#8592; Back to Products</a>
+
+  <!-- Product detail area -->
+  <div id="product-detail" style="margin-top:1rem;">
+    <div class="text-center mt-3"><span class="spinner"></span></div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  App.renderNavbar('navbar');
+
+  var productId = (new URLSearchParams(window.location.search)).get('id');
+
+  if (!productId) {
+    document.getElementById('product-detail').innerHTML =
+      '<p class="text-muted">No product ID specified.</p>';
+  } else {
+    loadProduct(productId);
+  }
+
+  function loadProduct(id) {
+    App.apiCall('/api/products/' + encodeURIComponent(id)).then(function (p) {
+      renderProduct(p);
+    }).catch(function (err) {
+      if (err.status === 404) {
+        document.getElementById('product-detail').innerHTML =
+          '<p class="text-muted">Product not found.</p>';
+      } else if (err.status !== 401) {
+        App.showAlert('alert-area', err.message || 'Could not load product.', 'error');
+        document.getElementById('product-detail').innerHTML = '';
+      }
+    });
+  }
+
+  function renderProduct(p) {
+    var unavailable = p.status !== 'ACTIVE' || p.stockQuantity <= 0;
+
+    var imgHtml = p.imageUrl
+      ? '<img src="' + App.escapeHtml(p.imageUrl) + '" alt="' + App.escapeHtml(p.name) + '" ' +
+        'style="width:100%;max-height:360px;object-fit:cover;border-radius:6px;">'
+      : '<div class="product-img-placeholder" style="height:260px;border-radius:6px;font-size:4rem;">🛍</div>';
+
+    var stockHtml;
+    if (p.status !== 'ACTIVE') {
+      stockHtml = '<span class="badge badge-secondary">Unavailable</span>';
+    } else if (p.stockQuantity <= 0) {
+      stockHtml = '<span class="badge badge-danger">Out of Stock</span>';
+    } else {
+      stockHtml = '<span class="badge badge-success">In Stock</span>' +
+        ' <span class="text-muted" style="font-size:0.85rem;">(' + p.stockQuantity + ' available)</span>';
+    }
+
+    var addToCartHtml = '';
+    if (!unavailable) {
+      addToCartHtml =
+        '<div style="display:flex;gap:0.75rem;align-items:center;margin-top:1.25rem;">' +
+        '<div style="display:flex;align-items:center;gap:0.4rem;">' +
+        '<label for="qty" style="font-size:0.9rem;font-weight:600;color:#555;">Qty:</label>' +
+        '<input type="number" id="qty" value="1" min="1" max="' + p.stockQuantity + '" ' +
+        'style="width:70px;padding:0.4rem 0.6rem;border:1px solid #ccc;border-radius:4px;font-size:0.95rem;">' +
+        '</div>' +
+        '<button class="btn btn-primary" id="add-btn" onclick="addToCart(' + p.id + ')">Add to Cart</button>' +
+        '</div>';
+    }
+
+    var html =
+      '<div class="card" style="padding:0;">' +
+      '<div style="display:flex;gap:2rem;flex-wrap:wrap;">' +
+
+      /* Image column */
+      '<div style="flex:0 0 340px;max-width:340px;">' + imgHtml + '</div>' +
+
+      /* Info column */
+      '<div style="flex:1;min-width:220px;padding:1.5rem;">' +
+      '<div style="margin-bottom:0.5rem;">' +
+      (p.category ? '<span class="badge badge-secondary" style="margin-bottom:0.5rem;">' + App.escapeHtml(p.category) + '</span>' : '') +
+      '</div>' +
+      '<h1 style="font-size:1.4rem;font-weight:700;margin-bottom:0.5rem;">' + App.escapeHtml(p.name) + '</h1>' +
+      '<div style="font-size:1.6rem;font-weight:700;color:#2c3e50;margin-bottom:0.75rem;">' +
+      App.formatPrice(p.price) + '</div>' +
+      '<div style="margin-bottom:0.75rem;">' + stockHtml + '</div>' +
+      (p.description
+        ? '<p style="font-size:0.95rem;color:#555;line-height:1.6;margin-bottom:0.75rem;">' +
+          App.escapeHtml(p.description) + '</p>'
+        : '') +
+      addToCartHtml +
+      '<div id="cart-alert" style="margin-top:0.75rem;"></div>' +
+      '</div>' +
+
+      '</div></div>';
+
+    document.getElementById('product-detail').innerHTML = html;
+  }
+
+  function addToCart(productId) {
+    if (!App.isLoggedIn()) {
+      var returnUrl = encodeURIComponent(window.location.href);
+      window.location.href = '/static/login.html?return=' + returnUrl;
+      return;
+    }
+
+    var qtyInput = document.getElementById('qty');
+    var qty = parseInt(qtyInput ? qtyInput.value : '1', 10);
+    if (!qty || qty < 1) qty = 1;
+
+    var btn = document.getElementById('add-btn');
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    App.clearAlert('cart-alert');
+
+    App.apiCall('/api/cart/items', {
+      method: 'POST',
+      body: { productId: productId, quantity: qty }
+    }).then(function () {
+      App.showAlert('cart-alert', 'Added to cart!', 'success');
+      btn.disabled = false;
+      btn.textContent = 'Add to Cart';
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = 'Add to Cart';
+      App.showAlert('cart-alert', err.message || 'Could not add to cart.', 'error');
+    });
+  }
+</script>
+</body>
+</html>

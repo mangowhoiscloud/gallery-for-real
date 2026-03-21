@@ -14,3 +14,23 @@
 - Context: AdminDataInitializer seeds admin data using JdbcTemplate; schema.sql must run first.
 - Discovery: Spring Boot's SQL initializer (spring.sql.init) runs during DataSource initialization (early in context creation), which completes before ApplicationRunner.run() is called. So ApplicationRunner can safely INSERT rows into schema-initialized tables.
 - Rule: Use ApplicationRunner for startup data seeding; it always runs after spring.sql.init schema/data scripts.
+
+### Learning: MyBatis resultMap constructor mapping for Java records
+- Context: CartItemResponse is a Java record; MyBatis needs to map a JOIN result to it via a resultMap.
+- Discovery: `<constructor><arg>` elements in MyBatis resultMap support a `name=` attribute that matches the constructor parameter name. Without `name=`, MyBatis uses positional order which becomes fragile. With Java 16+ records, parameter names are preserved in bytecode so name-based mapping works reliably.
+- Rule: Always use `name=` attribute on `<arg>` elements when mapping to Java records. Example: `<arg column="item_id" javaType="Long" name="itemId"/>`.
+
+### Learning: MyBatis <collection> requires notNullColumn when using LEFT JOIN
+- Context: OrderMapper.findById uses LEFT JOIN order_item; when an order has no items the JOIN produces one NULL row.
+- Discovery: Without `notNullColumn`, MyBatis creates a collection entry with all-null fields for the NULL row. Adding `notNullColumn="item_id"` tells MyBatis to skip creating the element when item_id is NULL, resulting in an empty list.
+- Rule: Always add `notNullColumn="<pk_column>"` on `<collection>` elements backed by a LEFT JOIN. Example: `<collection property="items" ofType="..." notNullColumn="item_id">`.
+
+### Learning: OrderResponse must be a plain class (not record) when it contains a nested collection
+- Context: OrderResponse wraps an Order header + List<OrderItemResponse> for the findById query.
+- Discovery: MyBatis <collection> element populates nested lists via property setter. Java records are immutable and have no setters, so MyBatis cannot inject the collected items into a record. The parent type in a resultMap with <collection> must have a setter for the list field.
+- Rule: When a DTO needs to carry a nested collection populated by MyBatis <resultMap>, use a plain class with setters, not a record. Child DTOs (elements of the collection) can still be records if they use <constructor> mapping.
+
+### Learning: Pagination ORDER BY needs a tiebreaker to be deterministic
+- Context: ProductMapperTest.pagination_returnsCorrectSlices inserted 5 products in a loop, all with CURRENT_TIMESTAMP; pages overlapped non-deterministically.
+- Discovery: When multiple rows have identical values for the ORDER BY column (e.g., same CURRENT_TIMESTAMP in the same transaction), SQL ordering is unstable and OFFSET-based pagination can return the same row on multiple pages.
+- Rule: Always append `id ASC` or `id DESC` as a tiebreaker in pagination ORDER BY clauses to ensure stable, deterministic page splits.

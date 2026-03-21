@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.shop.mapper.OrderItemMapper">
+
+    <resultMap id="OrderItemResponseMap" type="com.example.shop.dto.OrderItemResponse">
+        <constructor>
+            <arg column="id"           javaType="Long"                 name="id"/>
+            <arg column="order_id"     javaType="Long"                 name="orderId"/>
+            <arg column="product_id"   javaType="Long"                 name="productId"/>
+            <arg column="product_name" javaType="String"               name="productName"/>
+            <arg column="quantity"     javaType="Integer"              name="quantity"/>
+            <arg column="unit_price"   javaType="java.math.BigDecimal" name="unitPrice"/>
+        </constructor>
+    </resultMap>
+
+    <insert id="insertOrderItem" parameterType="com.example.shop.entity.OrderItem"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO order_item (order_id, product_id, product_name, quantity, unit_price)
+        VALUES (#{orderId}, #{productId}, #{productName}, #{quantity}, #{unitPrice})
+    </insert>
+
+    <select id="findByOrderId" parameterType="long" resultMap="OrderItemResponseMap">
+        SELECT id, order_id, product_id, product_name, quantity, unit_price
+        FROM order_item
+        WHERE order_id = #{orderId}
+        ORDER BY id ASC
+    </select>
+
+</mapper>
