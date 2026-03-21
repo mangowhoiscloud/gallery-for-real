@@ -1,0 +1,11 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Jest setup snapshot: minimal component matches snapshot 1`] = `
+<div>
+  <span
+    class="badge"
+  >
+    Test
+  </span>
+</div>
+`;

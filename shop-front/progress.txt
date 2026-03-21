@@ -1,0 +1,124 @@
+=== Harness initialized: 2026-03-21T14:52:36+09:00 ===
+Project type: node
+
+=== Session 2026-03-21T15:20:00+09:00 ===
+Completed: Item 1 - Project scaffolding and configuration
+Changes: Created tsconfig.json (strict, @/ alias), next.config.ts, postcss.config.mjs (Tailwind v4), app/globals.css (@theme with primary #1a1a2e / accent #2563eb tokens, dark mode CSS vars), app/layout.tsx, app/page.tsx, jest.config.js (ts-jest, jsdom), jest.setup.ts (@testing-library/jest-dom), eslint.config.mjs, __mocks__/styleMock.js, lib/ dir, __tests__/setup.test.tsx (4 tests).
+Why: Establishing the full project scaffold before implementing any features. CSS-based @theme (Tailwind v4 approach) avoids legacy JS config. Jest config in .js (not .ts) because ts-node was not installed and adding it was unnecessary overhead.
+Discovered: (1) jest.config.ts requires ts-node — not installed; use jest.config.js instead. (2) `next lint` in Next.js 15 needs eslint.config.mjs with FlatCompat to avoid interactive setup prompt. (3) next.config.ts works natively in Next.js 15 (no ts-node needed there).
+Difficulty: S actual vs S planned — accurate.
+
+=== Session 2026-03-21T16:00:00+09:00 ===
+Completed: Item 2 - TypeScript types and interfaces
+Changes: Created lib/types.ts with all domain interfaces (Product, CartItem, CartResponse, OrderItem, Order, Member, ShippingAddress, PageResponse<T>, ApiError, AuthCredentials) plus request payload types (CreateOrderPayload, UpdateProfilePayload, RegisterPayload, AddToCartPayload, UpdateCartItemPayload) and search params (ProductSearchParams, SortField, SortDir). Created lib/test-factories.ts with factory functions for all domain types (makeProduct, makeCartItem, makeCartResponse, makeOrder, makeOrderItem, makeMember, makeShippingAddress, makePageResponse, makeProductList, makeAuthCredentials, makeCreateOrderPayload, makeRegisterPayload). Created __tests__/types.test.ts (27 tests covering all factories).
+Why: Placing factories in lib/test-factories.ts rather than __tests__/factories.ts because Jest's testMatch pattern (**/__tests__/**/*.ts) would otherwise pick it up as a test suite with no tests and fail.
+Discovered: (1) Any .ts file in __tests__/ is treated as a test suite by Jest — factory/helper files must live outside that directory (lib/ or test-utils/ at root).
+Difficulty: S actual vs S planned — accurate.
+
+=== Session 2026-03-21T17:00:00+09:00 ===
+Completed: Item 3 - API client with auth and error handling
+Changes: Created lib/api.ts with 15 typed endpoint methods covering all 16 API endpoints (getProducts, searchProducts, getProductById, getCart, addToCart, updateCartItemQuantity, removeCartItem, clearCart, createOrder, getOrders, getOrderById, cancelOrder, login, register, getProfile, updateProfile). Exported CREDENTIALS_STORAGE_KEY constant, AuthError/NotFoundError/ApiRequestError error classes. Private request() wrapper handles Content-Type header, auth injection, error mapping (401→AuthError, 404→NotFoundError, 5xx→ApiRequestError), 204 No Content. Created __tests__/api.test.ts with 45 tests covering all endpoints, auth header injection, error handling, and PageResponse parsing.
+Why: login() uses authOverride (constructs Basic header from provided email/password, ignoring stored credentials) because at login time credentials are not yet saved. register() uses auth=false since the user has no credentials yet. CREDENTIALS_STORAGE_KEY exported so auth.ts (Item 4) can import the same key without a magic string. sessionStorage takes priority over localStorage (??-based nullish coalescing reads sessionStorage first).
+Discovered: (1) jest-environment-jsdom 29.7.0 does not include fetch natively (jsdom 20.x). Must set global.fetch = jest.fn() in beforeAll — no polyfill needed since we're fully mocking it. (2) btoa() is available in jsdom test environment (no need for Buffer.from().toString('base64')).
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-21T18:00:00+09:00 ===
+Completed: Item 4 - Auth utilities
+Changes: Created lib/auth.ts with saveCredentials(email, password, rememberMe), getCredentials(), clearCredentials(), isAuthenticated(), getAuthHeader(), and useAuth() hook backed by useSyncExternalStore. Created __tests__/auth.test.ts with 30 tests covering all utility functions and the hook (signIn/signOut re-render behavior, sessionStorage vs localStorage, rememberMe flag, colon-in-password edge case).
+Why: useAuth() uses useSyncExternalStore (React 19 native) instead of useState so external saves (e.g., from another module calling saveCredentials) automatically trigger re-renders without prop-drilling. Internal notifyListeners() handles same-tab updates; window storage event handles cross-tab sync. lib/auth.ts has "use client" directive because it touches localStorage/sessionStorage and imports useSyncExternalStore/useCallback from React. CREDENTIALS_STORAGE_KEY imported from lib/api.ts (single source of truth — no duplicating the constant). Password colon edge case handled by splitting on first colon only (colonIndex = decoded.indexOf(':')).
+Discovered: Nothing surprising — design worked cleanly on first attempt.
+Difficulty: S actual vs S planned — accurate.
+
+=== Session 2026-03-21T19:00:00+09:00 ===
+Completed: Item 5 - Root layout, Header, and Footer
+Changes: Created components/ThemeProvider.tsx (dark mode toggle, localStorage persistence, system preference detection, useTheme hook). Created components/ToastProvider.tsx (toast context with id generation, auto-dismiss after 5s, dismiss() for early removal, useToast hook). Created components/Header.tsx (client component: logo, desktop nav, auth-conditional links, cart count badge via getCart API, dark mode toggle, mobile hamburger menu with aria-expanded). Created components/Footer.tsx (brand, Products/About/Contact links, copyright year). Updated app/layout.tsx (Geist font loading, ThemeProvider + ToastProvider wrapping, Header + Footer around main). Updated jest.config.js (moduleNameMapper entries for next/link and next/image). Created __mocks__/nextLink.tsx and __mocks__/nextImage.tsx. Created __tests__/theme-provider.test.tsx (8 tests), __tests__/toast-provider.test.tsx (6 tests), __tests__/footer.test.tsx (4 tests), __tests__/header.test.tsx (14 tests). Total: 138 tests passing (was 106).
+Why: ThemeProvider uses useSyncExternalStore-free approach (simpler useState + useEffect) since theme is owned by one component. ToastProvider placed in layout so all pages can trigger toasts. Cart badge in Header calls getCart() when authenticated; updates on auth change. Two toggle-theme buttons (desktop + mobile) share the same aria-label; tests use getAllByRole. Mobile menu uses conditional rendering ({menuOpen && <nav>}) rather than CSS visibility so aria-expanded correctly reflects DOM presence. next/link and next/image mocked globally via moduleNameMapper so all future component tests work without per-file mocks.
+Discovered: See LEARNINGS.md below.
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-21T20:00:00+09:00 ===
+Completed: Item 6 - Shared UI components
+Changes: Created components/ui/ProductCard.tsx (next/image, formatted price, category badge, out-of-stock/low-stock indicators, hover scale, link to /products/[id]). Created components/ui/ProductGrid.tsx (responsive 1/2/3/4-col grid, accepts products array or children). Created components/ui/LoadingSkeleton.tsx (animated pulse cards matching ProductCard dimensions, configurable count). Created components/ui/Pagination.tsx (Previous/Next with disabled states, page number buttons, ellipsis for large ranges, aria-current for current page, 0-indexed to match Spring Boot API). Created components/ui/Breadcrumb.tsx (nav with chevron separators, last item non-linked with aria-current="page"). Created __tests__/product-card.test.tsx (11 tests), __tests__/product-grid.test.tsx (6 tests), __tests__/loading-skeleton.test.tsx (5 tests), __tests__/pagination.test.tsx (13 tests), __tests__/breadcrumb.test.tsx (7 tests). Total: 181 tests passing (was 138).
+Why: Pagination uses 0-indexed page numbers matching Spring Boot's PageResponse.number field — no conversion layer needed. LoadingSkeleton renders the same grid layout as ProductGrid so skeletons slot in seamlessly during Suspense fallback. Breadcrumb exports BreadcrumbItem type so page files can import it alongside the component.
+Discovered: Nothing surprising — all components tested cleanly on first pass.
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-21T21:00:00+09:00 ===
+Completed: Item 7 - Toast notification system and Error boundary
+Changes: Created components/ui/Toast.tsx (Radix UI Toast Root/Title/Description/Action/Close, 3 variant styles: success green / error red / info blue, onDismiss callback via onOpenChange). Updated components/ToastProvider.tsx to wrap with Radix.Provider, render Toast for each item, add Radix.Viewport. Created components/ErrorBoundary.tsx (class component with getDerivedStateFromError, handleReset, custom fallback prop). Created app/not-found.tsx (Server Component, 404 heading, Go Home link). Created app/error.tsx (Client Component, error.message display, reset callback). Added @radix-ui/react-toast mock (__mocks__/radixToast.tsx) with Provider/Viewport/Root/Title/Description/Close/Action — RootContext passes close handler to Close. Added moduleNameMapper entry in jest.config.js. Created __tests__/toast.test.tsx (11 tests), __tests__/error-boundary.test.tsx (6 tests), __tests__/not-found.test.tsx (4 tests), __tests__/error-page.test.tsx (4 tests). Total: 207 tests passing (was 181).
+Why: Radix UI mock uses RootContext so Close button can call Root's onOpenChange without prop drilling — avoids circular logic in mock. type-only import of ToastItem in Toast.tsx prevents circular runtime dep (ToastProvider imports Toast, Toast imports type ToastItem from ToastProvider). Radix mock uses semantic HTML (role="status", aria-label="close toast") instead of data-testid to avoid collision with existing ToastConsumer tests that also use data-testid="toast-title".
+Discovered: Nothing surprising — all tests green on first run.
+Difficulty: S actual vs S planned — accurate.
+
+=== Session 2026-03-21T22:00:00+09:00 ===
+Completed: Item 8 - Home page
+Changes: Created components/HeroCarousel.tsx (Client Component: auto-rotating carousel every 5s, pause on hover, prev/next ChevronLeft/Right buttons, dot indicators with aria-current, links to /products/[id]). Created components/CategoryNav.tsx (Server Component: scrollable category links with encodeURIComponent, FALLBACK_CATEGORIES export). Created components/ProductSection.tsx (Server Component: section heading + ProductGrid). Updated app/page.tsx (non-async page with 4 async Server sub-components — FeaturedHero, Categories, NewArrivals, BestSellers — each in Suspense with LoadingSkeleton fallback; export const dynamic='force-dynamic' for request-time rendering). Created __tests__/hero-carousel.test.tsx (13 tests) and __tests__/home-page.test.tsx (9 tests). Total: 230 tests passing (was 207).
+Why: Async sub-components for each section enable independent Suspense boundaries for streaming — if the hero API is slow, categories and product sections can still render. force-dynamic prevents Next.js from statically pre-generating the page at build time (API unavailable during build). FALLBACK_CATEGORIES exported from CategoryNav so page.tsx can use it in the category Suspense fallback without duplicating the array.
+Discovered: See LEARNINGS.md below.
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-21T23:00:00+09:00 ===
+Completed: Item 9 - Auth pages — Login and Register
+Changes: Created app/login/LoginForm.tsx (client component: email/password inputs, remember-me checkbox, inline validation, AuthError handling, redirect param support). Created app/login/page.tsx (server component wrapper with Suspense boundary required by Next.js 15 for useSearchParams). Created app/register/page.tsx (client component: name/email/password/confirm/phone/address, inline validation with 4 rules, auto-login on success). Created __tests__/login-page.test.tsx (11 tests) and __tests__/register-page.test.tsx (14 tests). Total: 255 tests passing (was 230).
+Why: Login page split into LoginForm.tsx + page.tsx because Next.js 15 requires useSearchParams (for ?redirect= param) to be in a component within a Suspense boundary — a Server Component wrapper providing Suspense is the cleanest solution. AuthError instanceof check works correctly because jest.requireActual spreads the real module so both the page and test share the same AuthError constructor. Register page is a single file since it doesn't use useSearchParams.
+Discovered: Next.js 15 build fails if useSearchParams is called in a client component that is the page root without a Suspense wrapper. Solution: server component page wrapper with <Suspense> around the client form component.
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-22T00:00:00+09:00 ===
+Completed: Item 10 - Product listing page with filters and search
+Changes: Created app/products/ProductListing.tsx (client component: search with 300ms debounce, category dropdown, min/max price range with debounce, sort dropdown with 5 options, active filter chips with × removal, ProductGrid results, Pagination, empty state, URL param sync). Created app/products/page.tsx (server component wrapper with Suspense + force-dynamic). Created __tests__/products-page.test.tsx (21 tests). Total: 276 tests passing (was 255).
+Why: Split into ProductListing.tsx (client) + page.tsx (server) following the login page pattern for useSearchParams + Suspense. All filter state synced bidirectionally with URL search params for bookmarkability. Debounced inputs (search, price) avoid excessive URL pushes. Filter changes reset page to 0. buildUrl helper constructs clean URLs (omits default values like page=0 and default sort).
+Discovered: Filter chip aria-labels conflict with form control labels when using getByLabelText regex matching — use role-based selectors (getByRole('combobox'), getByRole('textbox')) to disambiguate.
+Difficulty: L actual vs L planned — accurate.
+
+=== Session 2026-03-22T01:00:00+09:00 ===
+Completed: Item 11 - Product detail page
+Changes: Created app/products/[id]/AddToCartButton.tsx (client component: quantity +/- stepper with min=1 max=stockQuantity, Add to Cart button that calls addToCart API, success/error toasts, disabled state when out of stock). Created app/products/[id]/page.tsx (async server component: await params per Next.js 15, generateMetadata for dynamic title/description, getProductById + notFound() on 404, related products via searchProducts filtering out current product, breadcrumb Home>Products>[name], large image with hover scale-110 via Tailwind group/group-hover, stock status indicator (In Stock/Only X left/Out of Stock), decorative 5-star rating, AddToCartButton integration). Created __tests__/product-detail.test.tsx (12 tests for AddToCartButton covering quantity bounds, API call args, success/error toasts, out-of-stock state). Total: 288 tests passing (was 276).
+Why: Split page into Server Component (page.tsx) + Client Component (AddToCartButton.tsx) following the established pattern. Server Component handles all data fetching (product + related products) and static HTML; client component owns only the interactive quantity/cart state. Related products fetch failure is non-critical so caught and silenced separately from the main product fetch (which triggers notFound). Params awaited per Next.js 15 async API.
+Discovered: Nothing surprising — patterns from Items 8-10 transferred cleanly.
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-22T02:00:00+09:00 ===
+Completed: Item 12 - Cart page
+Changes: Created app/cart/CartPage.tsx (client component: auth redirect, getCart fetch on mount, cart items list with thumbnail/name/quantity-stepper/line-total/remove, optimistic remove with 5s undo toast and clearTimeout cancel, order summary sidebar with subtotal/shipping/total calculations). Created app/cart/page.tsx (server wrapper with Suspense + metadata). Created __tests__/cart-page.test.tsx (18 tests covering auth redirect, empty state, item rendering, quantity stepper API calls, remove/undo flow, order summary math). Total: 306 tests passing (was 288).
+Why: Optimistic removal (immediate visual removal, delayed API call) provides snappy UX without server roundtrip latency on the happy path. Timer stored in pendingRemovals ref (not state) so clearing it doesn't trigger re-render. useRef<Map> pattern keeps the undo state synchronized with component lifecycle. Shipping threshold is strictly > $50 (not ≥), so exactly $50 pays $5 shipping.
+Discovered: When using jest.useFakeTimers() globally in beforeEach, React's async state updates from useEffect (Promise chains) trigger console.error act() warnings. These are non-fatal noise — all tests pass. The warning occurs because waitFor resolves Promise microtasks outside the act() boundary when fake timers are active. Pattern is acceptable and matches how other test suites in this project handle async components.
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-22T03:00:00+09:00 ===
+Completed: Item 13 - Checkout page
+Changes: Created app/checkout/CheckoutForm.tsx (client component: auth redirect, empty-cart redirect, getCart+getProfile parallel fetch on mount, pre-fill name/addressLine1 from profile, 6-field shipping address form with inline validation, order summary panel with item list/subtotal/shipping/total, Place Order button with loading state, createOrder→clearCart→redirect flow, error toast on failure). Created app/checkout/page.tsx (server wrapper with Suspense and metadata). Created __tests__/checkout-page.test.tsx (17 tests). Total: 323 tests passing (was 306).
+Why: Split into CheckoutForm.tsx (client) + page.tsx (server wrapper) following the established cart/login page pattern. Promise.all([getCart(), getProfile()]) fetches both in parallel to minimize load time. Empty-cart redirect prevents orphan checkout session. Pre-fill from profile saves user time on repeat orders. Country defaults to 'US' as the most common case.
+Discovered: When a cart item price × quantity equals the subtotal (e.g., $45×2=$90 which also = total since shipping is free), getByText will match multiple elements. Use getAllByText with length check.
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-22T04:00:00+09:00 ===
+Completed: Item 14 - Orders page with order detail
+Changes: Created app/orders/OrdersPage.tsx (client component: auth redirect, paginated order list with status badges, expandable rows with inline item list + shipping address + actions, cancel button for PENDING orders with confirmation dialog, pagination). Created app/orders/page.tsx (server wrapper with Suspense + metadata). Created app/orders/[id]/OrderDetailPage.tsx (client component: order detail with breadcrumb, status badge, horizontal status stepper PENDING→CONFIRMED→SHIPPED→DELIVERED with aria-current="step" on active step / CANCELLED shown separately, item list with line totals, shipping address, cancel button for PENDING with confirmation dialog). Created app/orders/[id]/page.tsx (server wrapper with force-dynamic + metadata). Created __tests__/orders-page.test.tsx (19 tests) and __tests__/order-detail.test.tsx (12 tests). Total: 354 tests passing (was 323).
+Why: Split into OrdersPage.tsx (client) + page.tsx (server wrapper) following established cart/checkout pattern. Status stepper uses FLOW_STEPS array with index-based current/done/upcoming logic and aria-current="step" for accessibility. Cancel flow uses optimistic UI: confirmation dialog first (to prevent accidental cancellation), then API call, then local state update. Expandable rows avoid cluttering the list with item details while keeping them accessible without navigation.
+Discovered: See LEARNINGS.md below.
+Difficulty: M actual vs M planned — accurate.
+
+=== Session 2026-03-21T05:00:00+09:00 ===
+Completed: Item 15 - Profile page
+Changes: Created app/profile/ProfilePage.tsx (client component: auth redirect, getProfile fetch on mount, display mode shows email read-only/name/phone/address with em dash for missing fields, Edit Profile button toggles all non-email fields to inputs, Save calls updateProfile API with success toast and returns to display mode, Cancel reverts changes, My Orders link to /orders, Logout button calls clearCredentials + toast + redirect to home). Created app/profile/page.tsx (server wrapper with Suspense + metadata). Created __tests__/profile-page.test.tsx (10 tests). Total: 364 tests passing (was 354).
+Why: Split into ProfilePage.tsx (client) + page.tsx (server wrapper) following the established pattern for all pages in this project. Edit mode pre-fills from current profile state (not a new fetch) for instant response. Trimmed empty strings become undefined in the payload so the API ignores unchanged optional fields. Logout clears credentials before navigation to ensure Header updates auth state.
+Discovered: No new patterns — all established conventions applied cleanly.
+Difficulty: S actual vs S planned — accurate.
+
+=== Session 2026-03-21T06:00:00+09:00 ===
+Status: ALL 15 ITEMS COMPLETE — implementation plan fully delivered.
+Build: npm run build ✅ (all pages compile, static + dynamic routes generated)
+Tests: 364/364 passing across 28 test suites ✅
+No remaining TODO items in IMPLEMENTATION_PLAN.md.
+Recovery mode triggered because there is nothing left to implement.
+
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (67 criteria checked)
+  Coordinator: ALL PASS (6 categories checked; Footer /about /contact links are an accepted spec gap — not-found page handles gracefully)
+  Packer: ALL PASS (7 checks; .gitignore and .env.example fixed during verification)
+  Learnings_Applied: 12 of 12
+Timestamp: 2026-03-21T07:00:00+09:00
+---

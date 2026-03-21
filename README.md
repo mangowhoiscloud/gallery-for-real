@@ -13,6 +13,7 @@
 | [asis-legacy](asis-legacy/) | Java 1.8 + Spring 4.3.4 | Employee CRUD REST API | 스펙 1개 + pom.xml + CLAUDE.md | 19항목 | 106 tests, BUILD SUCCESS |
 | [shop-boot3](shop-boot3/) | Java 21 + Spring Boot 3.3.7 | 쇼핑몰 MVP (4 CRUD + 프론트) | 스펙 5개 + pom.xml + CLAUDE.md | 14항목 | 106 tests, BUILD SUCCESS |
 | [shop-legacy](shop-legacy/) | Java 1.8 + Spring 4.3.4 | 쇼핑몰 MVP (4 CRUD + 프론트) | 스펙 5개 + pom.xml + CLAUDE.md | 15항목 | 138 tests, BUILD SUCCESS |
+| [shop-front](shop-front/) | Next.js 15 + TypeScript + Tailwind 4 | 쇼핑몰 프론트엔드 (Shopify급 UI) | 스펙 1개 + package.json + CLAUDE.md | 15항목 (39 파일) | 364 tests passed |
 
 ## 구조
 
