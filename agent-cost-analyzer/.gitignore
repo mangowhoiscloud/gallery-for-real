@@ -1,0 +1,9 @@
+.harness-logs/
+*.bak
+.context/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/

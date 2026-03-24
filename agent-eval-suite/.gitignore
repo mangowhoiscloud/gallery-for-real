@@ -1,0 +1,4 @@
+.harness-logs/
+!tests/fixtures/**/.harness-logs/
+*.bak
+.context/

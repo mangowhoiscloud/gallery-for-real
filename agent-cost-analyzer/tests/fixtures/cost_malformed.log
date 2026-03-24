@@ -1,0 +1,7 @@
+2026-03-19T08:00:00+09:00 phase=socratic iter=1 model=claude-sonnet-4-5 in=12563 out=8734 cost=$0.6257 cumulative=$0.6257 item=
+this line is completely malformed and not a log entry
+2026-03-19T10:00:00+09:00 phase=build iter=1 model=claude-sonnet-4-5 in=5234 out=3456 cost=$0.1897 cumulative=$1.4068 item=1
+
+2026-03-19T12:00:00+09:00 missing_fields truncated_line_no_phase
+2026-03-19T13:00:00+09:00 phase=build iter=2 model=claude-sonnet-4-5 in=not_a_number out=1234 cost=$0.0769 cumulative=$1.5534 item=2
+2026-03-19T14:00:00+09:00 phase=verify iter=1 model=claude-sonnet-4-5 in=13456 out=9234 cost=$0.5186 cumulative=$2.0720 item=

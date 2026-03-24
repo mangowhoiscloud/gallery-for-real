@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Evaluation Report</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #1a1a2e;
+      background: #f8f9fa;
+      padding: 2rem;
+    }
+    h1 { font-size: 1.75rem; color: #16213e; margin-bottom: 1.5rem; }
+    h2 {
+      font-size: 1.25rem;
+      color: #0f3460;
+      border-bottom: 2px solid #e94560;
+      padding-bottom: 0.25rem;
+      margin: 1.75rem 0 0.75rem;
+    }
+    h3 { font-size: 1rem; color: #16213e; margin: 1rem 0 0.5rem; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
+    thead th {
+      background: #16213e;
+      color: #fff;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      white-space: nowrap;
+    }
+    tbody td { padding: 0.4rem 0.75rem; border-bottom: 1px solid #dee2e6; }
+    tbody tr:hover { background: #e8f4f8; }
+    .success { color: #28a745; font-weight: bold; }
+    .fail    { color: #dc3545; font-weight: bold; }
+    ul { list-style: none; padding-left: 1rem; }
+    ul li { margin: 0.2rem 0; }
+    ul ul { padding-left: 1.5rem; list-style: disc; }
+    .charts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      align-items: flex-start;
+      margin: 0.5rem 0 1rem;
+    }
+    .chart-block { min-width: 200px; }
+    .chart-placeholder {
+      color: #6c757d;
+      font-style: italic;
+      font-size: 0.875rem;
+    }
+    section { margin-bottom: 1.25rem; }
+    em { color: #6c757d; }
+  </style>
+</head>
+<body>
+  <h1>Agent Evaluation Report</h1>
+
+  <h2>Comparison Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Agent</th>
+        <th>Benchmark</th>
+        <th>Success</th>
+        <th>Pass Rate</th>
+        <th>Tests</th>
+        <th>Time (s)</th>
+        <th>Cost ($)</th>
+        <th>Tokens In</th>
+        <th>Tokens Out</th>
+        <th>Iterations</th>
+        <th>Items Done</th>
+        <th>Stuck</th>
+        <th>Circuit Breaks</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td>{{ r.agent }}</td>
+        <td>{{ r.benchmark }}</td>
+        <td class="{{ 'success' if r.success else 'fail' }}">{{ '✓' if r.success else '✗' }}</td>
+        <td>{{ "%.2f%%"|format(r.test_pass_rate * 100) }}</td>
+        <td>{{ r.test_passed }}/{{ r.test_total }}</td>
+        <td>{{ "%.1f"|format(r.total_time_seconds) }}</td>
+        <td>${{ "%.4f"|format(r.estimated_cost) }}</td>
+        <td>{{ r.total_tokens_in }}</td>
+        <td>{{ r.total_tokens_out }}</td>
+        <td>{{ r.total_iterations }}</td>
+        <td>{{ r.items_completed }}/{{ r.items_total }}</td>
+        <td>{{ r.stuck_count }}</td>
+        <td>{{ r.circuit_breaker_count }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="13"><em>No results.</em></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Charts</h2>
+  <div class="charts">
+    <div class="chart-block" id="radar-chart">
+      {{ radar_svg | safe }}
+      {% if not radar_svg %}<span class="chart-placeholder">[radar chart placeholder]</span>{% endif %}
+    </div>
+    <div class="chart-block" id="bar-chart">
+      {{ bar_chart_svg | safe }}
+      {% if not bar_chart_svg %}<span class="chart-placeholder">[bar chart placeholder]</span>{% endif %}
+    </div>
+    <div class="chart-block" id="heatmap">
+      {{ heatmap_svg | safe }}
+      {% if not heatmap_svg %}<span class="chart-placeholder">[heatmap placeholder]</span></span>{% endif %}
+    </div>
+  </div>
+
+  <h2>Detailed Metrics</h2>
+  {% for r in results %}
+  <section>
+    <h3>{{ r.agent }} on {{ r.benchmark }}</h3>
+    <ul>
+      <li><strong>Success:</strong> {{ r.success }}</li>
+      <li><strong>Build success:</strong> {{ r.build_success }}</li>
+      <li><strong>Tests:</strong> {{ r.test_passed }}/{{ r.test_total }} passed ({{ "%.2f%%"|format(r.test_pass_rate * 100) }})</li>
+      <li><strong>Time:</strong> {{ "%.1f"|format(r.total_time_seconds) }}s</li>
+      <li><strong>Iterations:</strong> {{ r.total_iterations }}</li>
+      <li><strong>Tokens in/out:</strong> {{ r.total_tokens_in }}/{{ r.total_tokens_out }}</li>
+      <li><strong>Cost:</strong> ${{ "%.4f"|format(r.estimated_cost) }}</li>
+      <li><strong>Items:</strong> {{ r.items_completed }}/{{ r.items_total }}</li>
+      <li><strong>Stuck count:</strong> {{ r.stuck_count }}</li>
+      <li><strong>Circuit breakers:</strong> {{ r.circuit_breaker_count }}</li>
+      {% if r.error %}<li><strong>Error:</strong> {{ r.error }}</li>{% endif %}
+      {% if r.phase_times %}
+      <li><strong>Phase times:</strong>
+        <ul>
+          {% for phase, t in r.phase_times.items() %}
+          <li>{{ phase }}: {{ "%.1f"|format(t) }}s</li>
+          {% endfor %}
+        </ul>
+      </li>
+      {% endif %}
+    </ul>
+  </section>
+  {% else %}
+  <p><em>No results.</em></p>
+  {% endfor %}
+</body>
+</html>

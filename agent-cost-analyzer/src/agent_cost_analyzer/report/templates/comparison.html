@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Cost Comparison</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; }
+  .header { background: linear-gradient(135deg, #1a1a2e, #16213e); color: #fff; padding: 1.5rem 2rem; }
+  .header h1 { font-size: 1.5rem; font-weight: 700; }
+  .main { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  .section { background: #fff; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 1rem; }
+  .section h2 { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin-bottom: 0.75rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; padding: 0.4rem 0.6rem; background: #f7fafc; color: #718096; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+  td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+  .chart-card { background: #fff; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .chart-card h2 { font-size: 0.9rem; font-weight: 600; color: #4a5568; margin-bottom: 0.75rem; }
+  canvas { max-height: 280px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Agent Cost Comparison</h1>
+  <p>{{ data.summary_table|length }} project(s) compared</p>
+</div>
+
+<div class="main">
+  <div class="section">
+    <h2>Project Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Total Cost</th>
+          <th>Iterations</th>
+          <th>Duration (min)</th>
+          <th>Stuck Events</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data.summary_table %}
+        <tr>
+          <td>{{ row.project_name }}</td>
+          <td>${{ "%.4f"|format(row.total_cost) }}</td>
+          <td>{{ row.total_iterations }}</td>
+          <td>{{ "%.1f"|format(row.duration_minutes) }}</td>
+          <td>{{ row.stuck_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Efficiency Ranking (Cost per Iteration)</h2>
+    <table>
+      <thead><tr><th>Rank</th><th>Project</th><th>Cost / Iteration</th></tr></thead>
+      <tbody>
+        {% for entry in data.efficiency_ranking %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ entry.project_name }}</td>
+          <td>${{ "%.4f"|format(entry.cost_per_iteration) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="charts">
+    <div class="chart-card">
+      <h2>Total Cost by Project</h2>
+      <canvas id="costChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h2>Iterations by Project</h2>
+      <canvas id="iterChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+const comparisonData = {{ data_json | safe }};
+
+(function() {
+  const palette = ["#4299e1","#48bb78","#ed8936","#9f7aea","#f56565","#38b2ac"];
+  const projects = comparisonData.summary_table.map(function(r) { return r.project_name; });
+
+  new Chart(document.getElementById("costChart"), {
+    type: "bar",
+    data: {
+      labels: projects,
+      datasets: [{
+        label: "Total Cost ($)",
+        data: comparisonData.summary_table.map(function(r) { return r.total_cost; }),
+        backgroundColor: palette
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+
+  new Chart(document.getElementById("iterChart"), {
+    type: "bar",
+    data: {
+      labels: projects,
+      datasets: [{
+        label: "Iterations",
+        data: comparisonData.summary_table.map(function(r) { return r.total_iterations; }),
+        backgroundColor: palette
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+})();
+</script>
+</body>
+</html>

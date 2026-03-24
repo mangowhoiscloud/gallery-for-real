@@ -1,0 +1,115 @@
+=== Harness initialized: 2026-03-24T15:03:57+09:00 ===
+Project type: python-uv
+
+=== Session 2026-03-24T15:45:00+09:00 ===
+Completed: Item 2 - SHA256 hashing utilities
+Changes: Created src/prompt_vc/hashing.py with hash_file() and hash_version(). Created tests/test_hashing.py with 13 tests covering known content, empty files, unicode, ordering independence, and hex format validation.
+Why: hash_version sorts filenames before hashing so the same logical snapshot always yields the same version hash regardless of dict insertion order — critical for no-change detection in snapshot command.
+Discovered: pytest import not needed if no fixtures used — ruff F401 caught it.
+Difficulty: S actual vs S planned — accurate estimate.
+
+=== Session 2026-03-24T15:30:00+09:00 ===
+Completed: Item 1 - Data models (dataclasses)
+Changes: Created src/prompt_vc/__init__.py, src/prompt_vc/models.py with VersionMeta, BindingMeta, IndexData, ConfigData dataclasses. Created tests/__init__.py, tests/test_models.py with 15 tests.
+Why: VersionMeta.files is dict[str, str] (filename->hash) to align with hash_version() function in Item 2. IndexData.versions is list[VersionMeta] so log command can read all info from a single index.yaml file. ConfigData.file_pattern defaults to "PROMPT_*.md" per spec.
+Discovered: Python 3.14.3 is the runtime (uv selected it). No mypy installed — TYPECHECK_CMD silently skips. uv sync builds the package from pyproject.toml, so src/ layout works without editable install.
+Difficulty: S actual vs S planned — accurate estimate.
+
+=== Session 2026-03-24T16:10:00+09:00 ===
+Completed: Item 3 - Storage layer (YAML I/O + directory operations)
+Changes: Created src/prompt_vc/storage.py with store_path, is_initialized, ensure_store, read_yaml, write_yaml, read_config, write_config, read_index, write_index, discover_prompts, copy_snapshot. Created tests/test_storage.py with 24 tests.
+Why: ensure_store is idempotent (exist_ok=True) — the init command will own the "already initialized" error check, keeping storage layer dumb and reusable. _version_meta_from_dict uses `.get("files") or {}` to safely handle None from YAML null. shutil.copy2 preserves metadata automatically.
+Discovered: ruff F401 flags unused pytest import even when pytest is only used for fixtures — don't import pytest unless decorators (@pytest.mark.*) or fixtures are needed directly.
+Difficulty: M actual vs M planned — accurate estimate.
+
+=== Session 2026-03-24T16:40:00+09:00 ===
+Completed: Item 4 - init command
+Changes: Created src/prompt_vc/commands/__init__.py, src/prompt_vc/commands/init.py with init() and AlreadyInitializedError. Created tests/test_init.py with 13 tests.
+Why: init() checks is_initialized() then calls ensure_store() (idempotent) and writes default config + empty index. AlreadyInitializedError is raised at command layer, not storage layer — keeps ensure_store dumb and reusable (per Learning from Item 3). prompt_dir stored as str in config since ConfigData.prompt_dir is typed str.
+Discovered: No new discoveries — followed established patterns from LEARNINGS.md.
+Difficulty: S actual vs S planned — accurate estimate.
+
+=== Session 2026-03-24T17:10:00+09:00 ===
+Completed: Item 5 - snapshot command
+Changes: Created src/prompt_vc/commands/snapshot.py with snapshot(), NotInitializedError, NoChangesError. Created tests/test_snapshot.py with 27 tests covering first snapshot, sequential snapshots, no-change detection, hash correctness, metadata.yaml validation, and not-initialized guard.
+Why: snapshot() reads config for prompt_dir (resolves relative paths against cwd), hashes all discovered files, compares version hash against last version to detect no-change, creates snapshot dir + copies files + writes metadata.yaml, then appends to index. IndexData import was removed as unused — only VersionMeta needed as return type. Unused pdir assignments in tests cleaned up immediately per ruff F841.
+Discovered: ruff F841 catches unused local variable assignments — helper functions that return values but the caller doesn't need the return should be called without assignment (not just suppressed with `_`).
+Difficulty: M actual vs M planned — accurate estimate.
+
+=== Session 2026-03-24T17:40:00+09:00 ===
+Completed: Item 14 - Test fixtures (sample PROMPT_*.md files)
+Changes: Created tests/fixtures/ with PROMPT_system.md, PROMPT_user.md, PROMPT_tools.md, valid_result.json, invalid_result.json. Created tests/conftest.py with initialized_repo, snapshot_repo, and two_snapshot_repo fixtures.
+Why: P0 item with no dependencies — provides reusable fixtures so log/diff/checkout/bind/compare/trend tests don't repeat setup boilerplate. initialized_repo chains into snapshot_repo chains into two_snapshot_repo so setup is composable. Prompt files use realistic content matching the tool-use domain. valid_result.json includes all required bind fields (benchmark, agent, success, test_pass_rate) plus optional metrics; invalid_result.json omits all required fields to test validation.
+Discovered: No new discoveries — followed established conftest patterns. pytest.fixture functions require import pytest since @pytest.fixture decorator is used directly.
+Difficulty: S actual vs S planned — accurate estimate.
+
+=== Session 2026-03-24T18:10:00+09:00 ===
+Completed: Item 6 - log command
+Changes: Created src/prompt_vc/commands/log.py with log() returning formatted string. Created tests/test_log.py with 9 tests covering empty repo, single/multiple versions, reverse order, current-version asterisk, field content.
+Why: log() returns a string instead of printing directly — keeps the function testable without capsys and lets the CLI own the print. Reverse chronological order (reversed(index.versions)) matches git log UX. Short hash = first 8 chars of SHA256, consistent with git conventions.
+Discovered: No new discoveries — followed established patterns.
+Difficulty: S actual vs S planned — accurate estimate.
+
+=== Session 2026-03-24T18:40:00+09:00 ===
+Completed: Item 7 - diff command
+Changes: Created src/prompt_vc/commands/diff.py with diff(cwd, v1, v2) -> str. Created tests/test_diff.py with 11 tests covering identical versions, changed files, new files, deleted files, version labels, unchanged files excluded, and both VersionNotFoundError and NotInitializedError cases.
+Why: diff() returns a string (not printing) for testability, consistent with log(). Uses difflib.unified_diff with version-qualified filenames (e.g. "v1/PROMPT_system.md"). New/deleted files get a header label before the diff block. Files with identical hashes are skipped entirely — no need to even read the file content. Sorted file ordering ensures deterministic output.
+Discovered: No new discoveries — established patterns held cleanly.
+Difficulty: M actual vs M planned — accurate estimate.
+
+=== Session 2026-03-24T19:10:00+09:00 ===
+Completed: Item 8 - checkout command
+Changes: Created src/prompt_vc/commands/checkout.py with checkout(), NotInitializedError, VersionNotFoundError, UnsavedChangesError. Created tests/test_checkout.py with 11 tests covering clean checkout, dirty-blocked, force overwrite, nonexistent version, removes-extra-files, no-current-version edge case, file content accuracy.
+Why: Unsaved-change detection compares working file hashes against current snapshot's files dict — same hash scheme used by snapshot command for consistency. Files in prompt_dir matching the pattern but absent from the target snapshot are deleted (via unlink) to keep working dir in sync with the checked-out version. If current_version is None (empty or reset repo), the unsaved-change check is skipped entirely.
+Discovered: No new discoveries — established patterns held cleanly.
+Difficulty: M actual vs M planned — accurate estimate.
+
+=== Session 2026-03-24T19:40:00+09:00 ===
+Completed: Item 9 - bind command
+Changes: Created src/prompt_vc/commands/bind.py with bind(), NotInitializedError, VersionNotFoundError, InvalidResultError. Created tests/test_bind.py with 17 tests covering valid bind, file creation, YAML content, run ID auto-increment (3 runs), independent version runs, optional metrics, missing timestamp, all 4 missing-required-field cases, invalid JSON, nonexistent version, not-initialized, and invalid_result.json fixture.
+Why: metrics dict stores all fields except benchmark/agent/timestamp (top-level BindingMeta fields). _next_run_id scans bindings_dir glob pattern "{version}_run*.yaml" and extracts max run number — simple and reliable. timestamp falls back to datetime.now(utc) if not present in JSON, matching spec note that it's optional.
+Discovered: No new discoveries — established patterns held cleanly. pytest.approx required for float comparisons in pytest (success is bool, needs no approx; test_pass_rate is float).
+Difficulty: M actual vs M planned — accurate estimate.
+
+=== Session 2026-03-24T20:10:00+09:00 ===
+Completed: Item 10 - compare command
+Changes: Created src/prompt_vc/commands/compare.py with compare(), NotInitializedError, VersionNotFoundError, NoBenchmarksError. Created tests/test_compare.py with 16 tests covering: version header, benchmark name, metric names, numeric delta, zero delta, winner line, key change message, benchmark filter, filter not common error, no common benchmarks error, no bindings error, latest run selection, multiple benchmarks, version not found (v1 and v2), not initialized.
+Why: _load_latest_bindings() groups binding YAMLs by benchmark and keeps the highest run number — same glob pattern as bind's _next_run_id for consistency. Delta formatting dispatches on type: bool gets → notation if changed, float gets absolute + percentage, int gets absolute with sign. Winner is counted as v2 > v1 for all pure numeric metrics (bool excluded via isinstance check). Key Change reads v2's snapshot message from index — visible insight into what changed between versions. NaN percentage avoided by checking v1_val != 0 before dividing.
+Discovered: Python bool is subclass of int — must check isinstance(val, bool) BEFORE isinstance(val, (int, float)) to avoid treating True/False as 1/0 in numeric delta. Pattern: bool-first guard in type dispatch.
+Difficulty: M actual vs M planned — accurate estimate.
+
+=== Session 2026-03-24T20:40:00+09:00 ===
+Completed: Item 11 - trend command
+Changes: Created src/prompt_vc/commands/trend.py with trend() returning formatted string. Created tests/test_trend.py with 14 tests covering: not initialized, no versions, no bindings, header, benchmark name, version columns, metric rows, values shown, missing binding shows dash, multiple benchmarks, sorted alphabetically, latest run selection, single version, chronological order.
+Why: trend() reads all versions from index in chronological order, loads latest binding per benchmark for each version, builds one table per benchmark with versions as columns. Missing bindings show "—". Reuses the same _load_latest_bindings pattern from compare for consistency. Metrics come from the stored "metrics" dict (bind stores all non-top-level fields there). Test data must NOT use nested "metrics" key since bind treats all non-top-level fields as metrics.
+Discovered: Test data for bind-dependent tests should use flat structure (latency/tokens at top level), not nested {"metrics": {...}}, because bind puts all non-top-level, non-top-level-field data into the metrics dict. Nested "metrics" key becomes a dict-valued metric, not individual metric rows.
+Difficulty: S actual vs M planned — simpler once pattern established from compare.
+
+=== Session 2026-03-24T21:10:00+09:00 ===
+Completed: Item 12 - CLI entry point (argparse wiring)
+Changes: Created src/prompt_vc/cli.py with build_parser() and main(). 8 subcommands wired: init, snapshot, log, diff, checkout, bind, compare, trend. Lazy imports inside handlers keep module load fast. Handlers return int exit codes; main() calls sys.exit(handler(args)). Created tests/test_cli.py with 40 tests covering arg parsing for all flags, handler dispatch registry, and exit codes for success/error paths for each subcommand.
+Why: Lazy imports (inside handler functions) allow patching at prompt_vc.commands.<module>.<func> in tests — avoids module-level import side effects. build_parser() is a separate function so tests can parse args without invoking main(). _HANDLERS dict makes dispatch testable without running argparse.
+Discovered: F841 ruff catches unused variables even in test setup (mock_meta created but never used). F401 catches unused sys/Path imports that were included habitually. Remove these upfront.
+Difficulty: S actual vs M planned — argparse wiring is straightforward once all command signatures are known.
+
+=== Session 2026-03-24T22:00:00+09:00 ===
+Completed: Item 13 - Output format support (terminal, HTML, markdown)
+Changes: Created src/prompt_vc/formatters.py with format_terminal, format_html (jinja2), format_markdown (pipe tables), apply_format, UnsupportedFormatError. Added --format flag to compare and trend CLI subcommands. Updated _handle_compare/_handle_trend in cli.py to call apply_format. Created tests/test_formatters.py with 26 tests. Added 14 new tests to test_cli.py for --format parsing and integration. 248 total tests pass.
+Why: format_markdown parses fixed-width terminal tables (splits on 2+ spaces) and converts to markdown pipe tables. format_html uses Jinja2 template with content escaped via | e filter. format_terminal is a passthrough. apply_format dispatches by fmt string, raises UnsupportedFormatError for unknowns. CLI uses argparse choices=["terminal","html","markdown"] for validation at parse time.
+Discovered: Jinja2 autoescape=False is the default when using BaseLoader — must use | e filter explicitly to escape HTML chars in content (or set autoescape=True). Using autoescape=False + explicit | e gives full control.
+Difficulty: M actual vs M planned — accurate estimate. Markdown table parser for fixed-width input was the interesting part; splitting on 2+ spaces is robust given column padding always creates 2+ spaces between columns.
+
+=== Session 2026-03-24T23:00:00+09:00 ===
+Status: ALL 14 ITEMS COMPLETE — no remaining work in IMPLEMENTATION_PLAN.md
+Verification: 248 tests pass, ruff clean, all items DONE
+Note: Recovery mode triggered because build phase has nothing left to implement. The implementation plan is fully completed.
+
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (43 acceptance criteria checked across 14 items)
+  Coordinator: ALL PASS (5 categories: cross-module integration, orphaned files, dependency coherence, API consistency, error handling)
+  Packer: ALL PASS (6 checks: dependencies declared, build artifact, no hardcoded paths, CLI help, clone-and-run ready, package structure)
+  Learnings_Applied: 7 of 7
+Timestamp: 2026-03-24T23:30:00+09:00
+---

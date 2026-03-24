@@ -1,0 +1,173 @@
+=== Harness initialized: 2026-03-24T14:43:57+09:00 ===
+Project type: python-uv
+
+=== Session 2026-03-24T15:10:00+09:00 ===
+Completed: Item 1 - Package skeleton and data models
+Changes: Created src/tistory_migrator/{__init__.py,__main__.py,models.py,cli.py}, tests/__init__.py, tests/test_models.py. Fixed pyproject.toml (hatch wheel packages, dev deps ruff+pytest).
+Why: TistoryPost uses plain dataclass (not Pydantic) per stack rules. FailedPost added as separate dataclass since failed_posts in MigrationResult is list[FailedPost] per CLARITY_LOG schema (not just a count). cli.py stub needed so __main__.py import doesn't fail during this iteration. to_dict() on MigrationResult serializes to metadata.json-compatible format.
+Discovered: pytest and ruff not in pyproject.toml dev deps — added via `uv add --dev`. Python 3.14 in venv (newer than 3.11 minimum, compatible).
+Difficulty: S as estimated — straightforward dataclass definitions.
+
+=== Session 2026-03-24T15:30:00+09:00 ===
+Completed: Item 2 - Extractor base interface
+Changes: Created src/tistory_migrator/extractor/{__init__.py,base.py}, tests/extractor/{__init__.py,test_base.py}. BaseExtractor is ABC with abstract name property and abstract extract() method. 13 tests added (total 29).
+Why: ABC enforces contract — subclasses must implement both name and extract() or TypeError is raised. str | None union type syntax used (Python 3.10+ style, compatible with 3.14). Filter defaults are None per spec. Tested both negative cases (cannot instantiate abstract classes) and positive cases (concrete subclass works). Import tested via package __init__ to ensure public API is correct.
+Discovered: No new issues.
+Difficulty: S as estimated — straightforward ABC definition.
+
+=== Session 2026-03-24T16:00:00+09:00 ===
+Completed: Item 3 - Content converter
+Changes: Created src/tistory_migrator/converter.py (generate_slug, process_tistory_tags, _replace_img_srcs, _generate_frontmatter, convert_post). Created tests/test_converter.py (74 tests). Total tests: 103.
+Why: Two-pass image approach: Tistory custom tags and regular img srcs are replaced with deterministic local paths /images/{slug}/filename before markdownify conversion — image_downloader downloads to those paths independently (no coupling). pyyaml used for frontmatter to safely handle titles with YAML special chars (colons, brackets, quotes). Korean slug preserves Hangul syllables as Unicode per CLARITY_LOG spec (not romanized). DOTALL added to image tag regex for robustness (multiline content).
+Discovered: markdownify handles ATX headings and list bullets cleanly with heading_style='ATX' and bullets='-'. pyyaml auto-quotes date strings (e.g., '2024-01-15') to prevent YAML date parsing; yaml.safe_load in tests returns the string as expected.
+Difficulty: M as estimated — regex patterns for Tistory custom tags needed careful DOTALL handling for multiline code blocks.
+
+=== Session 2026-03-24T17:00:00+09:00 ===
+Completed: Item 4 - API extractor (Tistory Open API)
+Changes: Created src/tistory_migrator/extractor/api.py (TistoryApiExtractor, ApiAuthError, ApiUnavailableError). Created tests/extractor/test_api.py (50 tests). Updated extractor/__init__.py to export new classes. Total tests: 153.
+Why: _request() sleeps rate_limit_sleep on attempt 0 and _RETRY_DELAYS[attempt-1] on retries — this unifies rate limiting and retry backoff in one method. ApiAuthError vs ApiUnavailableError distinguish "stop everything, fallback" from "skip this post". Individual post read failures (ApiUnavailableError after retries) are caught in extract() loop and skipped — only auth failures trigger full fallback. Date filters are inclusive per CLARITY_LOG spec. Category filter is case-insensitive (str.lower() comparison).
+Discovered: TISTORY_API_BASE imported in test file but unused — ruff caught it, removed it.
+Difficulty: M as estimated — retry/rate-limit sleep ordering needed careful design to keep test assertions predictable.
+
+=== Session 2026-03-24T18:00:00+09:00 ===
+Completed: Item 5 - Backup XML extractor
+Changes: Created src/tistory_migrator/extractor/backup.py (TistoryBackupExtractor, BackupFileNotFoundError, BackupParseError). Created tests/extractor/test_backup.py (37 tests). Updated extractor/__init__.py to export new classes. Total tests: 190.
+Why: xml.etree.ElementTree used (stdlib, no extra dependency). ET.fromstring() in _parse_xml_string() for in-memory parsing (enables direct testing without file I/O). id extracted from <post id="N"> attribute first, falling back to <id> child element to handle both Tistory XML variants. Three date formats supported (%Y-%m-%d %H:%M:%S, ISO with T, date-only) to handle export variations. FileNotFoundError distinguished from ParseError so CLI can fallback vs error cleanly.
+Discovered: ET.parse() with empty string raises ParseError (not a separate exception) — handled by BackupParseError wrapper. ET.fromstring() raises ET.ParseError for malformed XML and for empty string.
+Difficulty: S/M — straightforward XML parsing; flexible design for two id formats added minor complexity.
+
+=== Session 2026-03-24T19:00:00+09:00 ===
+Completed: Item 6 - Web scraper extractor
+Changes: Created src/tistory_migrator/extractor/scraper.py (TistoryScraperExtractor, ScraperBlockedError). Created tests/extractor/test_scraper.py (79 tests). Updated extractor/__init__.py to export new classes. Total tests: 269.
+Why: sitemap.xml discovery first (XML namespace stripped via regex before ET.fromstring); archive page fallback when sitemap missing/empty. CSS selector cascade (.entry-content → article .post-content → article → .post-content → #content .post) tries selectors in order. robots.txt loaded once before crawl loop using session.get directly (not _get); on failure or 404, allow_all=True set (Python 3.14 uninitialized RobotFileParser defaults to deny-all, so explicit allow_all needed). Per-post 403 raises ScraperBlockedError and propagates with partial_posts; other per-post errors are skipped. Discovery-level 403 (sitemap/archive) caught and triggers next strategy.
+Discovered: Python 3.14 RobotFileParser().can_fetch() returns False by default (deny-all when not initialized), unlike older Python where empty entries = allow-all. Must set allow_all=True explicitly when robots.txt is unavailable.
+Difficulty: M as estimated — robots.txt default behavior change in Python 3.14 was the main surprise; rest was straightforward.
+
+=== Session 2026-03-24T20:00:00+09:00 ===
+Completed: Item 7 - Image downloader
+Changes: Created src/tistory_migrator/image_downloader.py (ImageDownloader, ImageDownloadResult, _url_to_filename, _resolve_collision). Created tests/test_image_downloader.py (36 tests). Total tests: 305.
+Why: ImageDownloader.download_for_post() accepts a list of URLs + post slug; it downloads to {output_dir}/images/{slug}/ and tracks URL→local path mapping. Collision resolution uses a `used_paths` set accumulated within the call — no global state needed since each post has its own slug directory (cross-post collisions are impossible by design). 404/410 responses are treated as permanent failures (no retry) since the resource is definitively gone; 5xx and timeouts get up to 3 retries with exponential backoff. rate_limit_sleep applied between requests (not before first). no_images=True returns immediately with failed=total so callers see the skip count in stats.
+Discovered: No new surprises — retry and collision patterns established in earlier items transferred cleanly.
+Difficulty: M as estimated — collision + retry + rate-limit interaction needed careful design to keep tests clean and assertions predictable.
+
+=== Session 2026-03-24T21:00:00+09:00 ===
+Completed: Item 8 - Writer module
+Changes: Created src/tistory_migrator/writer.py (Writer class with setup_directories, write_post, write_metadata). Created tests/test_writer.py (30 tests). Total tests: 335.
+Why: Writer is a thin class wrapping Path.mkdir/write_text — keeps filesystem side-effects isolated from CLI orchestration logic. dry_run=True is checked at the top of each method so callers don't need to branch. OSError on write_post/write_metadata returns False instead of raising (logged) since a single failed post should not abort the whole migration; OSError on setup_directories propagates since the CLI cannot proceed without the output directory. ensure_ascii=False in json.dumps preserves Korean characters as UTF-8 (not \uXXXX escapes). posts_dir and images_dir exposed as public attributes so the CLI and image_downloader can use them without recomputing paths.
+Discovered: No new surprises — patterns from earlier items (error handling, dry-run, Korean UTF-8) transferred cleanly.
+Difficulty: S as estimated — straightforward Path I/O with dry-run guard.
+
+=== Session 2026-03-24T22:00:00+09:00 ===
+Completed: Item 9 - CLI orchestration and integration
+Changes: Rewrote src/tistory_migrator/cli.py (stub → full implementation): _build_parser, _validate_args, _parse_date, _extract_posts (strategy + fallback chain), _run (pipeline), _print_summary, main. Created tests/test_cli.py (68 tests). Total tests: 403.
+Why: Strategy selection is conditional on available inputs per CLARITY_LOG — API→Scraper when no backup, API→XML→Scraper when backup also provided. _extract_posts() returns (posts, strategy_name) so _run() can build MigrationResult correctly. dry_run in Writer is already handled by Writer itself (setup_directories/write_post/write_metadata skip in dry_run mode); image download is explicitly skipped in _run by checking args.dry_run before calling download_for_post. Used datetime.now(UTC) instead of deprecated utcnow(). BLE001 (broad except) justified by "one post failure should not stop migration" policy.
+Discovered: No new surprises — all patterns (fallback chain, error isolation, dry-run) were pre-resolved in CLARITY_LOG and established by earlier items.
+Difficulty: M as estimated — strategy fallback chain needed careful branching; rest was straightforward plumbing.
+
+=== Session 2026-03-24T23:00:00+09:00 ===
+Completed: Build phase finalization — all 9 items complete
+Changes: Added __pycache__/, *.pyc, .bkit/ to .gitignore (were polluting git status). Updated IMPLEMENTATION_PLAN.md Completed counter from 0 to 9.
+Why: 3 consecutive harness iterations found no work to do because all 9 items were already implemented and committed. The only remaining gap was housekeeping: .gitignore missing Python cache entries and .bkit directory, and the plan's completed counter was stale at 0.
+Discovered: No new items needed — all 9 items pass 403 tests, lint clean.
+Difficulty: S — trivial cleanup.
+
+=== Session 2026-03-24T23:30:00+09:00 ===
+BUILD_PHASE_COMPLETE: All 9/9 items implemented, committed, passing.
+- 403 tests pass (2.99s)
+- ruff lint clean
+- No TODO items remain in IMPLEMENTATION_PLAN.md
+- PHASE_1_COMPLETE marker already set
+Blocker: No more work in build phase. Harness should advance to next phase.
+
+=== Session 2026-03-25T00:00:00+09:00 ===
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (27 criteria checked)
+  Coordinator: ALL PASS (5 modules checked)
+  Packer: ALL PASS (6 checks)
+  Learnings_Applied: 6 of 6
+Timestamp: 2026-03-25T00:00:00+09:00
+---
+
+=== Session 2026-03-24T15:10:00+09:00 (rebuild) ===
+Completed: Item 1 - Package skeleton and data models
+Changes: Created src/tistory_migrator/{models.py,__main__.py,cli.py(stub)}, tests/{__init__.py,test_models.py}. 18 tests, all pass. ruff clean.
+Why: Reset commit (ab0bbb6) cleared all implementation. Rebuilding from scratch. cli.py is a minimal stub so __main__.py import doesn't fail; will be fully implemented in Item 9.
+Discovered: No new issues — patterns from previous build carried forward.
+Difficulty: S as estimated.
+
+=== Session 2026-03-25T09:00:00+09:00 ===
+Completed: Item 2 - Extractor base interface
+Changes: Created src/tistory_migrator/extractor/{__init__.py,base.py}, tests/extractor/{__init__.py,test_base.py}. 16 new tests (34 total). BaseExtractor is ABC with abstract name property and abstract extract() method. extractor/__init__.py exports BaseExtractor with __all__.
+Why: ABC enforces contract — subclasses must implement both name (property) and extract() or TypeError at instantiation. str | None union syntax used (Python 3.10+ style). Filter defaults verified via inspect.signature to confirm all are None. Import path tested via package __init__ to verify public API.
+Discovered: No new issues — patterns from previous build transferred cleanly.
+Difficulty: S as estimated — straightforward ABC definition.
+
+=== Session 2026-03-25T10:00:00+09:00 ===
+Completed: Item 3 - Content converter
+Changes: Created src/tistory_migrator/converter.py (generate_slug, process_tistory_tags, _url_to_filename, _replace_img_srcs, _generate_frontmatter, _code_language_callback, convert_post). Created tests/test_converter.py (89 tests). Total tests: 123.
+Why: Used markdownify's code_language_callback option to extract language from <code class="language-xxx"> — cleaner than subclassing. generate_slug preserves Korean Unicode (Hangul syllables/jamo) as-is per CLARITY_LOG spec. Two-pass image approach: process_tistory_tags converts [##_Image|..._##] and [##_Code|..._##] to standard HTML, then _replace_img_srcs replaces src URLs with /images/{slug}/{filename}. pyyaml with allow_unicode=True handles Korean titles and YAML special chars (colons, quotes) correctly.
+Discovered: markdownify has a built-in code_language_callback option (no subclassing needed). Tistory CDN URLs ending in / have empty basename → fallback to image.jpg.
+Difficulty: M as estimated — markdownify callback discovery simplified implementation.
+
+=== Session 2026-03-25T11:00:00+09:00 ===
+Completed: Item 4 - API extractor (Tistory Open API)
+Changes: Created src/tistory_migrator/extractor/api.py (TistoryApiExtractor, ApiAuthError, ApiUnavailableError). Created tests/extractor/test_api.py (59 tests). Updated extractor/__init__.py to export new classes. Total tests: 182.
+Why: _request() sleeps rate_limit_sleep on attempt 0 and _RETRY_DELAYS[attempt-1] on retries — unifies rate limiting and retry backoff. ApiAuthError vs ApiUnavailableError: auth errors propagate for fallback, unavailable errors cause individual post skips. _get_category_map() catches ApiUnavailableError and returns empty dict (category unavailability is non-fatal). _fetch_post_ids() propagates both error types since we can't proceed without the post list. Date filters inclusive; category filter case-insensitive via str.lower().
+Discovered: _request() returns the full tistory{} dict (not just item{}); test assertions must check result.get("item") not result directly. Also: single category/post returned as dict (not list) by API — both cases handled via isinstance() check.
+Difficulty: M as estimated — retry/rate-limit sleep ordering and pagination needed careful design; test mock chain for unavailable post skip was the trickiest part.
+
+=== Session 2026-03-25T12:00:00+09:00 ===
+Completed: Item 5 - XML Backup extractor
+Changes: Created src/tistory_migrator/extractor/backup.py (TistoryBackupExtractor, BackupFileNotFoundError, BackupParseError). Created tests/extractor/test_backup.py (33 tests). Updated extractor/__init__.py to export new classes. Total tests: 215.
+Why: _parse_xml_string() uses ET.fromstring() for in-memory parsing (enables testing without file I/O). _parse_published() tries fromisoformat() first (handles ISO with T + timezone, space-separated, date-only in Python 3.11+), then strptime("%Y-%m-%d %H:%M:%S") as explicit fallback — raises ValueError rather than returning datetime.min. ID extraction tries attribute first, falls back to child element. Empty content and unparseable dates skip the post with a warning. Category filter is case-insensitive; date filters are inclusive.
+Discovered: No new issues — all patterns from LEARNINGS.md and previous build transferred cleanly.
+Difficulty: S as estimated — straightforward XML parsing with clear spec requirements.
+
+=== Session 2026-03-25T13:00:00+09:00 ===
+Completed: Item 6 - Web scraper extractor
+Changes: Created src/tistory_migrator/extractor/scraper.py (TistoryScraperExtractor, ScraperBlockedError). Created tests/extractor/test_scraper.py (79 tests). Updated extractor/__init__.py to export new classes. Total tests: 294.
+Why: Discovery uses two strategies: sitemap.xml first (namespace stripped via regex before ET.fromstring), archive page fallback. Discovery-level 403s are caught in _discover_urls() and trigger next strategy (LEARNINGS pattern). Post-level 403 raises ScraperBlockedError with accumulated partial_posts. robots.txt loaded via session.get directly (not _get) before crawl loop; on any failure or non-200, allow_all=True set explicitly (Python 3.14 deny-all default). Content selector cascade tries 5 selectors in order. Category/tag have primary and fallback selectors. Title: og:title → h1. Published: article:published_time meta → time[datetime] → datetime.min.
+Discovered: No new issues — all patterns from LEARNINGS.md transferred cleanly.
+Difficulty: M as estimated — strategy dispatch with blocked-error propagation needed careful design; rest was straightforward.
+
+=== Session 2026-03-25T14:00:00+09:00 ===
+Completed: Item 7 - Image downloader
+Changes: Created src/tistory_migrator/image_downloader.py (ImageDownloader, ImageDownloadResult, _url_to_filename, _resolve_collision). Created tests/test_image_downloader.py (43 tests). Total tests: 337.
+Why: _download_one() iterates attempt 0..3: attempt 0 is the initial request with no backoff sleep; attempts 1-3 sleep _RETRY_DELAYS[attempt-1] (1s, 2s, 4s). Permanent failures (404/410) return None immediately on first attempt — no retry. Network errors (Timeout, ConnectionError) and 5xx codes continue the retry loop. rate_limit_sleep is applied between URLs (not before first, not during retries). _resolve_collision uses a per-call used_paths set — no global state, clean per-post isolation. _url_to_filename falls back to 'image.jpg' for empty basename (CDN slash-trailing URLs per LEARNINGS). no_images=True returns immediately with failed=total, no directories created.
+Discovered: dataclasses.field accidentally imported (not needed for @dataclass without field defaults) — removed. No other surprises.
+Difficulty: M as estimated — retry/rate-limit interaction and collision tracking matched prior patterns exactly.
+
+=== Session 2026-03-25T15:00:00+09:00 ===
+Completed: Item 8 - Writer module
+Changes: Created src/tistory_migrator/writer.py (Writer class with setup_directories, write_post, write_metadata). Created tests/test_writer.py (27 tests). Total tests: 364.
+Why: Writer wraps Path.mkdir/write_text — isolates filesystem side-effects from CLI. dry_run=True checked at top of each method so callers don't branch. OSError on write_post/write_metadata returns False (logged) instead of raising — one failed post should not abort migration. OSError on setup_directories propagates — CLI cannot proceed without output directory. ensure_ascii=False preserves Korean characters as UTF-8. posts_dir and images_dir exposed as public attributes for CLI and image_downloader reuse.
+Discovered: No new surprises — patterns from previous build (error handling, dry-run, Korean UTF-8) transferred cleanly.
+Difficulty: S as estimated — straightforward Path I/O with dry-run guard.
+
+=== Session 2026-03-25T16:00:00+09:00 ===
+Completed: Item 9 - CLI orchestration and integration
+Changes: Rewrote src/tistory_migrator/cli.py (stub → full): _build_parser (11 args), _validate_args, _parse_date, _extract_posts (strategy fallback chain), _format_duration, _print_summary, _run (pipeline), main. Created tests/test_cli.py (64 tests). Total tests: 428.
+Why: Strategy selection is conditional on available inputs per CLARITY_LOG — use_scraper_first when --scrape or --blog without --token/backup; API→Scraper fallback (no backup); API→XML→Scraper (backup available). Filename slug uses {YYYY-MM-DD}-{slug} format from published_at per SPEC-REINFORCED rule. dry_run skips setup_directories call and forces no_images=True on ImageDownloader. BLE001 (broad except on convert_post) justified by "one post failure should not abort migration" policy. datetime.now(timezone.utc) used instead of deprecated utcnow().
+Discovered: No new surprises — all patterns (fallback chain, error isolation, dry-run) were pre-resolved in CLARITY_LOG and established by earlier items.
+Difficulty: M as estimated — strategy fallback chain needed careful branching; rest was straightforward plumbing.
+
+=== Session 2026-03-25T17:00:00+09:00 ===
+BUILD_PHASE_COMPLETE: All 9/9 items implemented, committed, passing.
+- 428 tests pass (0.39s)
+- ruff lint clean (all checks passed)
+- No TODO items remain in IMPLEMENTATION_PLAN.md
+- PHASE_1_COMPLETE marker set
+Blocker: No more work in build phase. Harness should advance to next phase.
+
+=== Session 2026-03-25T18:00:00+09:00 ===
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (26 criteria checked)
+  Coordinator: ALL PASS (6 modules checked)
+  Packer: ALL PASS (6 checks)
+  Learnings_Applied: 8 of 8
+Timestamp: 2026-03-25T18:00:00+09:00
+---

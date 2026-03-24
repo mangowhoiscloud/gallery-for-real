@@ -1,0 +1,9 @@
+name: word-counter
+language: python
+complexity: simple
+expected_tests: 20
+expected_items: 5
+timeout: 3600
+description: >
+  Implement a word frequency counter CLI tool that reads text from stdin or a file
+  and outputs word frequencies sorted by count descending.

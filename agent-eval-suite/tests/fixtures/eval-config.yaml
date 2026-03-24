@@ -1,0 +1,14 @@
+benchmarks:
+  - path: benchmarks/word-counter
+    timeout: 3600
+  - path: benchmarks/employee-crud
+    timeout: 7200
+agents:
+  - name: claude-opus
+    model: opus
+  - name: claude-sonnet
+    model: sonnet
+    extra_args:
+      temperature: "0.0"
+output: results/
+timeout: 3600

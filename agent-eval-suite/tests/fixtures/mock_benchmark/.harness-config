@@ -1,0 +1,12 @@
+PROJECT_TYPE="python-uv"
+PKG_MGR="uv"
+BUILD_CMD="uv build"
+TEST_CMD="uv run pytest"
+LINT_CMD="uv run ruff check ."
+TYPECHECK_CMD="uv run mypy . 2>/dev/null || true"
+SRC_DIRS="src/"
+TEST_DIRS="tests/"
+OPUS_MODEL="${OPUS_MODEL:-opus}"
+SONNET_MODEL="${SONNET_MODEL:-sonnet}"
+AMBIGUITY_THRESHOLD=0.10
+TEST_CODE_RATIO_TARGET=0.70

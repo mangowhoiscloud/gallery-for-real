@@ -1,0 +1,6 @@
+2026-03-19T10:05:00+09:00 metric=error_count context=build_iter1 value=2 detail=0
+2026-03-19T11:05:00+09:00 metric=error_count context=build_iter2 value=1 detail=0
+2026-03-19T12:05:00+09:00 metric=error_count context=build_iter3 value=3 detail=1
+2026-03-19T14:05:00+09:00 metric=error_count context=build_iter5 value=5 detail=2
+2026-03-19T15:05:00+09:00 metric=error_count context=build_iter6 value=4 detail=1
+2026-03-19T16:05:00+09:00 metric=error_count context=build_iter7 value=6 detail=3

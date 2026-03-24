@@ -1,0 +1,12 @@
+.harness-logs/
+*.bak
+.context/
+__pycache__/
+*.pyc
+.bkit/
+dist/
+*.egg-info/
+.venv/
+build/
+.pytest_cache/
+.ruff_cache/

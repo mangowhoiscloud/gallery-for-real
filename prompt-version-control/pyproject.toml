@@ -1,0 +1,31 @@
+[project]
+name = "prompt-version-control"
+version = "0.1.0"
+description = "AI 프롬프트 버전 관리 + A/B 테스트 + 성능 추적 도구"
+requires-python = ">=3.11"
+dependencies = [
+    "pyyaml>=6.0.0",
+    "jinja2>=3.1.0",
+]
+
+[project.scripts]
+prompt-vc = "prompt_vc.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/prompt_vc"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.7",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"

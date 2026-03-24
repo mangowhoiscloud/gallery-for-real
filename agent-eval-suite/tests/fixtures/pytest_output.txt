@@ -1,0 +1,9 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.9, pytest-7.4.0
+rootdir: /workspace/word-counter
+collected 23 items
+
+tests/test_counter.py ......................                              [ 95%]
+tests/test_cli.py .                                                      [100%]
+
+============================== 23 passed in 1.42s ==============================

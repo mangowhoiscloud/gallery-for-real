@@ -1,0 +1,12 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.9, pytest-7.4.0
+rootdir: /workspace/word-counter
+collected 23 items
+
+tests/test_counter.py ....................F.                              [ 91%]
+tests/test_cli.py E                                                      [100%]
+
+FAILED tests/test_counter.py::test_edge_case - AssertionError: expected 5, got 4
+ERROR tests/test_cli.py::test_main - FileNotFoundError: no such file
+
+========================= 1 failed, 1 error, 21 passed in 2.01s ========================

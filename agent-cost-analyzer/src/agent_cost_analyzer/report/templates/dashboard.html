@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Cost Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; }
+  .header { background: linear-gradient(135deg, #1a1a2e, #16213e); color: #fff; padding: 1.5rem 2rem; }
+  .header h1 { font-size: 1.5rem; font-weight: 700; }
+  .header p { font-size: 0.85rem; color: #a0aec0; margin-top: 0.25rem; }
+  .main { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .card { background: #fff; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card .label { font-size: 0.75rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: .05em; }
+  .card .value { font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; color: #1a1a2e; }
+  .card .sub { font-size: 0.8rem; color: #a0aec0; margin-top: 0.15rem; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .chart-card { background: #fff; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .chart-card h2 { font-size: 0.9rem; font-weight: 600; color: #4a5568; margin-bottom: 0.75rem; }
+  canvas { max-height: 260px; }
+  .section { background: #fff; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 1rem; }
+  .section h2 { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin-bottom: 0.75rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; padding: 0.4rem 0.6rem; background: #f7fafc; color: #718096; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; }
+  td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+  .badge-red { background: #fed7d7; color: #c53030; }
+  .badge-yellow { background: #fefcbf; color: #b7791f; }
+  .badge-green { background: #c6f6d5; color: #276749; }
+  .failure-item { background: #fff5f5; border-left: 3px solid #fc8181; padding: 0.5rem 0.75rem; border-radius: 0 6px 6px 0; margin-bottom: 0.5rem; font-size: 0.85rem; }
+  .failure-item strong { color: #c53030; }
+  .empty { color: #a0aec0; font-size: 0.85rem; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Agent Cost Dashboard</h1>
+  <p>Project type: {{ data.project.project_type or "Unknown" }} &mdash; {{ "Complete" if data.project.is_complete else "In Progress" }}</p>
+</div>
+
+<div class="main">
+  <!-- Summary Cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="label">Total Cost</div>
+      <div class="value">${{ "%.4f"|format(data.total_cost) }}</div>
+      <div class="sub">all phases</div>
+    </div>
+    <div class="card">
+      <div class="label">Total Iterations</div>
+      <div class="value">{{ data.total_iterations }}</div>
+      <div class="sub">build + other phases</div>
+    </div>
+    <div class="card">
+      <div class="label">Avg Cost / Iteration</div>
+      <div class="value">${{ "%.4f"|format(data.avg_iteration_cost) }}</div>
+      <div class="sub">mean across all iters</div>
+    </div>
+    <div class="card">
+      <div class="label">Failure Rate</div>
+      <div class="value">{{ "%.0f"|format(data.failure_patterns.build_failure_rate * 100) }}%</div>
+      <div class="sub">{{ data.failure_patterns.stuck_events|length }} stuck event(s)</div>
+    </div>
+    <div class="card">
+      <div class="label">Token I/O Ratio</div>
+      <div class="value">{{ "%.2f"|format(data.token_analysis.io_ratio) }}</div>
+      <div class="sub">output / input</div>
+    </div>
+  </div>
+
+  <!-- Charts row 1: timeline + phase pie -->
+  <div class="charts">
+    <div class="chart-card" style="grid-column: span 2;">
+      <h2>Cumulative Cost Over Time</h2>
+      <canvas id="timelineChart"></canvas>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-card">
+      <h2>Cost by Phase</h2>
+      <canvas id="phaseChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h2>Cost by Item</h2>
+      <canvas id="itemChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h2>Token Usage by Phase</h2>
+      <canvas id="tokenChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Failure patterns -->
+  <div class="section">
+    <h2>Failure Patterns</h2>
+    {% if data.failure_patterns.stuck_events %}
+      {% for ev in data.failure_patterns.stuck_events %}
+        <div class="failure-item">
+          <strong>Stuck on Item {{ ev.item }}</strong> &mdash; started at iteration {{ ev.start_iteration }}, repeated {{ ev.count }} time(s)
+          {% if ev.item|string in data.failure_patterns.recovery_times %}
+            &mdash; recovered after {{ data.failure_patterns.recovery_times[ev.item|string] }} iteration(s)
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty">No stuck events detected.</p>
+    {% endif %}
+    {% if data.failure_patterns.circuit_breakers %}
+      <h2 style="margin-top:0.75rem;">Circuit Breaker Events</h2>
+      {% for cb in data.failure_patterns.circuit_breakers %}
+        <div class="failure-item">
+          <strong>CIRCUIT_BREAKER</strong> at {{ cb.timestamp }} &mdash; {{ cb.message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Token anomalies -->
+  {% if data.token_analysis.anomalies %}
+  <div class="section">
+    <h2>Token Anomalies (3&sigma;)</h2>
+    <table>
+      <thead><tr><th>Phase</th><th>Iteration</th><th>Actual Tokens</th><th>Threshold</th></tr></thead>
+      <tbody>
+        {% for a in data.token_analysis.anomalies %}
+        <tr>
+          <td>{{ a.phase }}</td>
+          <td>{{ a.iteration }}</td>
+          <td>{{ "{:,}".format(a.actual_tokens) }}</td>
+          <td>{{ "%.0f"|format(a.threshold) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Model escalations -->
+  {% if data.token_analysis.escalations %}
+  <div class="section">
+    <h2>Model Escalations</h2>
+    <table>
+      <thead><tr><th>Item</th><th>Iteration</th><th>From</th><th>To</th></tr></thead>
+      <tbody>
+        {% for e in data.token_analysis.escalations %}
+        <tr>
+          <td>{{ e.item }}</td>
+          <td>{{ e.iteration }}</td>
+          <td>{{ e.from_model }}</td>
+          <td>{{ e.to_model }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+const analysisData = {{ data_json | safe }};
+
+(function() {
+  const palette = ["#4299e1","#48bb78","#ed8936","#9f7aea","#f56565","#38b2ac","#ecc94b","#667eea"];
+
+  // Timeline chart
+  const tlData = analysisData.cost_breakdown.timeline;
+  if (tlData && tlData.length > 0) {
+    new Chart(document.getElementById("timelineChart"), {
+      type: "line",
+      data: {
+        labels: tlData.map(function(p) { return p.ts.substring(0, 19).replace("T", " "); }),
+        datasets: [{
+          label: "Cumulative Cost ($)",
+          data: tlData.map(function(p) { return p.cumulative; }),
+          borderColor: "#4299e1",
+          backgroundColor: "rgba(66,153,225,0.1)",
+          tension: 0.3,
+          fill: true,
+          pointRadius: 4
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  // Phase pie chart
+  const phaseData = analysisData.cost_breakdown.by_phase;
+  const phaseKeys = Object.keys(phaseData);
+  if (phaseKeys.length > 0) {
+    new Chart(document.getElementById("phaseChart"), {
+      type: "pie",
+      data: {
+        labels: phaseKeys,
+        datasets: [{ data: phaseKeys.map(function(k) { return phaseData[k]; }), backgroundColor: palette }]
+      },
+      options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+    });
+  }
+
+  // Item bar chart
+  const itemData = analysisData.cost_breakdown.by_item;
+  const itemKeys = Object.keys(itemData).sort(function(a, b) { return parseInt(a) - parseInt(b); });
+  if (itemKeys.length > 0) {
+    new Chart(document.getElementById("itemChart"), {
+      type: "bar",
+      data: {
+        labels: itemKeys.map(function(k) { return "Item " + k; }),
+        datasets: [{
+          label: "Cost ($)",
+          data: itemKeys.map(function(k) { return itemData[k]; }),
+          backgroundColor: "#48bb78"
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  // Token usage bar chart (by phase)
+  const tokenPhase = analysisData.token_analysis.by_phase;
+  const tokenKeys = Object.keys(tokenPhase);
+  if (tokenKeys.length > 0) {
+    new Chart(document.getElementById("tokenChart"), {
+      type: "bar",
+      data: {
+        labels: tokenKeys,
+        datasets: [
+          { label: "Input Tokens", data: tokenKeys.map(function(k) { return tokenPhase[k].input_tokens; }), backgroundColor: "#4299e1" },
+          { label: "Output Tokens", data: tokenKeys.map(function(k) { return tokenPhase[k].output_tokens; }), backgroundColor: "#9f7aea" }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { position: "bottom" } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+name: mock-benchmark
+language: python
+complexity: simple
+expected_tests: 10
+expected_items: 3
+timeout: 300
+description: >
+  A minimal benchmark used for testing the eval runner. Always succeeds.

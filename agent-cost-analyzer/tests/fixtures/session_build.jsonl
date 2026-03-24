@@ -1,0 +1,5 @@
+{"type":"system","subtype":"hook_started","timestamp":"2026-03-19T10:00:00+09:00","hookType":"PostToolUse","toolName":"Bash"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Running pytest to verify the implementation..."}]},"timestamp":"2026-03-19T10:00:01+09:00"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01abc123","is_error":true,"content":[{"type":"text","text":"Error: test_cost_parser.py::test_parse_valid FAILED\nAssertionError: expected Decimal('0.6257') but got None"}]}]},"timestamp":"2026-03-19T10:00:02+09:00"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"The test failed because the cost field wasn't being parsed correctly. Let me fix the regex."}]},"timestamp":"2026-03-19T10:00:03+09:00"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01def456","is_error":false,"content":[{"type":"text","text":""}],"stderr":"warning: deprecated function used in cost_log.py:42"}]},"timestamp":"2026-03-19T10:00:04+09:00"}

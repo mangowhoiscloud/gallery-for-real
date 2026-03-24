@@ -1,0 +1,12 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Building employee-crud 1.0.0
+[INFO] ------------------------------------------------------------------------
+[INFO] --- maven-surefire-plugin:3.0.0:test (default-test) @ employee-crud ---
+[INFO] Running com.example.EmployeeServiceTest
+[INFO] Running com.example.EmployeeControllerTest
+[INFO] Running com.example.EmployeeRepositoryTest
+[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.45 s
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------

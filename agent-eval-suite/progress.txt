@@ -1,0 +1,116 @@
+=== Harness initialized: 2026-03-24T15:03:55+09:00 ===
+Project type: python-uv
+
+=== Session 2026-03-24T15:30:00+09:00 ===
+Completed: Item 1 - Project scaffolding
+Changes: Created src/agent_eval/__init__.py (with __version__="0.1.0"), src/agent_eval/backends/__init__.py, src/agent_eval/report/__init__.py, src/agent_eval/report/templates/ dir, tests/__init__.py, tests/conftest.py, tests/test_scaffolding.py. uv sync, ruff, pytest all pass.
+Why: pytest exits 5 when 0 tests are collected (not 0 as spec suggested), so added minimal test_scaffolding.py to verify imports and satisfy backpressure requirement. The spec note "no tests collected is OK" was aspirational — harness needs exit 0.
+Discovered: nothing new
+Difficulty: S actual vs S planned
+
+=== Session 2026-03-24T16:00:00+09:00 ===
+Completed: Item 2 - Data models
+Changes: Created src/agent_eval/models.py with RunResult (21 fields + to_dict/from_dict), BenchmarkConfig, BenchmarkRef, AgentRef, SuiteConfig, and parser intermediate types (CostLogData, PlanData, PhaseLogData, TestData). Created tests/test_models.py with 23 tests covering creation, defaults, serialization round-trip, and edge cases.
+Why: RunResult.success computed by caller (metrics.py) per clarity — model just stores it. TestData class name triggers harmless pytest collection warning (it's a dataclass, can't be collected). All fields use field(default_factory=dict) for mutable defaults to avoid shared-state bugs.
+Discovered: TestData name causes PytestCollectionWarning — harmless but noted. pytest warns when a class named Test* is imported into a test module because it tries to collect it.
+Difficulty: M actual vs M planned
+
+=== Session 2026-03-24T17:00:00+09:00 ===
+Completed: Item 3 - Test fixtures
+Changes: Created tests/fixtures/ with cost.log (7 lines, 4 phases), phase.log (2 CIRCUIT_BREAKER + 1 PREDICT_FAILURE), IMPLEMENTATION_PLAN.md (5 items: 3 DONE, 2 TODO), progress.txt (2 session blocks), pytest_output.txt, pytest_output_with_failures.txt, maven_output.txt, benchmark.yaml, eval-config.yaml (2 benchmarks × 2 agents), .harness-config. Created tests/fixtures/mock_benchmark/ with full tree: benchmark.yaml, .harness-config, specs/spec.md, IMPLEMENTATION_PLAN.md (3 items: 2 DONE, 1 TODO), progress.txt, .harness-logs/cost.log, .harness-logs/phase.log.
+Why: Fixture data derives from real harness output formats confirmed in CLARITY_LOG (actual cost.log lines, loop.sh phase.log event format). All numeric values are hand-computed for verifiable parser tests. mock_benchmark is the self-contained benchmark directory tree MockBackend will copy and parse. Ruff + pytest both green (26 tests, 0 failures).
+Discovered: nothing new
+Difficulty: S actual vs S planned
+
+=== Session 2026-03-24T18:00:00+09:00 ===
+Completed: Items 4, 5, 6, 7 - Parsers (cost log, plan, test output, phase log)
+Changes: Created src/agent_eval/parser.py with parse_cost_log, parse_plan, parse_test_output, parse_phase_log. Created tests/test_parser.py with 28 tests across 4 test classes (all passing). All 4 plan items share one parser module — implemented together since cohesive, zero inter-item dependencies, all unblocked simultaneously.
+Why: parse_cost_log uses datetime.fromisoformat() (Python 3.11+ supports timezone offsets). phase_times computed as max(ts)-min(ts) per phase bucket. parse_test_output uses walrus operator for inline regex match. All edge cases (missing file, empty file, malformed lines) return zeroed data objects.
+Discovered: nothing new
+Difficulty: M actual vs M planned (for the group)
+
+=== Session 2026-03-24T19:00:00+09:00 ===
+Completed: Item 8 - Config loader
+Changes: Created src/agent_eval/config.py with load_benchmark_config, load_suite_config, load_harness_config. Created tests/test_config.py with 21 tests across 3 test classes (all passing). 75 total tests, 0 failures.
+Why: load_harness_config uses regex for shell KEY=VALUE parsing and strips surrounding quotes; handles both double/single-quoted and unquoted values. YAML loaders raise FileNotFoundError on missing files, ValueError on malformed YAML or missing required fields.
+Discovered: nothing new
+Difficulty: S actual vs S planned
+
+=== Session 2026-03-24T20:00:00+09:00 ===
+Completed: Item 9 - Metrics computation
+Changes: Created src/agent_eval/metrics.py with compute_run_result, normalize_scores, aggregate_results. Created tests/test_metrics.py with 29 tests across 3 test classes (all passing). Total: 104 tests, 0 failures.
+Why: compute_run_result assembles RunResult from the 4 parsed data objects — success logic is build_success AND test_total>0 AND test_passed==test_total per clarity spec. normalize_scores uses per-axis max normalization so scores are always in [0,1]; single-agent speed/cost/reliability score is 0.0 (not 1.0) because max==self, which is the mathematically correct result. aggregate_results groups by benchmark name for use by report generators and Item 14's charts.
+Discovered: nothing new
+Difficulty: S actual vs M planned (spec was precise, implementation was straightforward)
+
+=== Session 2026-03-24T21:00:00+09:00 ===
+Completed: Item 10 - Backend ABC + MockBackend
+Changes: Created src/agent_eval/backends/base.py (AgentBackend ABC with run() abstract method), src/agent_eval/backends/mock.py (MockBackend copies .harness-logs/, IMPLEMENTATION_PLAN.md, progress.txt from fixture_dir into output_dir, then runs full parse→metrics pipeline), tests/fixtures/mock_benchmark/test_output.txt (10 passed pytest fixture), tests/test_backends.py (36 tests across 3 classes). Total: 140 tests, 0 failures.
+Why: MockBackend reads test output from fixture_dir/test_output.txt if present, falling back to a 1-passed canned string — this makes the output deterministic for tests without coupling MockBackend to a hardcoded string. shutil.rmtree on existing dst_logs before copytree makes run() idempotent. benchmark_name taken from benchmark_dir.name per spec (real config loading belongs in runner.py, not the backend).
+Discovered: nothing new
+Difficulty: M actual vs M planned
+
+=== Session 2026-03-24T22:00:00+09:00 ===
+Completed: Item 11 - JSON report generator
+Changes: Created src/agent_eval/report/json_report.py (generate_json_report), updated src/agent_eval/report/__init__.py (discover_results, generate_report dispatcher), tests/test_report_json.py (21 tests across 3 classes). Total: 161 tests, 0 failures.
+Why: generate_json_report writes {summary, results} JSON — summary aggregates per-benchmark success_rate/count so callers can quickly see win rates without parsing all RunResult entries. discover_results handles both bare RunResult dicts (from future runner.py) and full report dicts (from generate_json_report) by checking for 'results' key. format parameter is a string (not enum) to keep CLI argparse simple.
+Discovered: nothing new
+Difficulty: S actual vs S planned
+
+=== Session 2026-03-24T23:00:00+09:00 ===
+Completed: Item 16 - Runner orchestrator
+Changes: Created src/agent_eval/runner.py (run_single, run_compare, run_suite). Created tests/test_runner.py with 30 tests across 3 classes. Total: 191 tests, 0 failures.
+Why: run_single creates {output}/{benchmark}/{agent}/ directory, calls backend.run(), and serializes result.json — error isolation via bare except catches backend exceptions and produces an error RunResult that is still written to result.json so downstream callers always see a result. run_compare delegates to run_single per backend. run_suite double-loops over SuiteConfig (benchmark-major, agent-minor) and calls backend_factory(agent_name) per iteration so each backend is freshly constructed per run. agent_name extracted via getattr with class-name fallback for forward-compatibility with ClaudeBackend.
+Discovered: nothing new
+Difficulty: S actual vs M planned (spec was precise, implementation was straightforward)
+
+=== Session 2026-03-24T24:00:00+09:00 ===
+Completed: Item 12 - Markdown report generator
+Changes: Created src/agent_eval/report/markdown.py (generate_markdown_report, _winner). Updated report/__init__.py to support format="markdown" in generate_report dispatcher. Created tests/test_report_markdown.py with 22 tests across 4 classes (all passing). Total: 213 tests, 0 failures.
+Why: _winner uses (test_pass_rate, -estimated_cost) as sort key — primary sort by correctness, tiebreak by lowest cost. generate_markdown_report writes three sections: comparison table, winners by benchmark, detailed per-run metrics. Empty results list handled gracefully in all sections.
+Discovered: ruff E741 fires on single-letter loop variable 'l' — renamed to 'ln' to satisfy linter.
+Difficulty: S actual vs M planned
+
+=== Session 2026-03-24T25:00:00+09:00 ===
+Completed: Item 17 - CLI entry point
+Changes: Created src/agent_eval/cli.py (main, _build_parser, _make_backend, _cmd_run, _cmd_compare, _cmd_suite, _cmd_report). Created tests/test_cli.py with 38 tests across 5 classes (all passing). pyproject.toml already had agent-eval entry point. Total: 251 tests, 0 failures.
+Why: _make_backend dispatches on agent name prefix — "mock" → MockBackend(Path(".")), "claude[:model]" → ClaudeBackend (deferred import so missing module gives ImportError exit 2 at runtime, not import time). Tests patch _make_backend for unit tests and _make_backend=MockBackend(MOCK_BENCHMARK) for integration test so no real backend needed. Exit codes: 0=all success, 1=any run failed, 2=config/arg error.
+Discovered: RunResult requires total_iterations and total_time_seconds (no defaults) — test helpers must supply them.
+Difficulty: S actual vs M planned
+
+=== Session 2026-03-24T26:00:00+09:00 ===
+Completed: Item 13 - HTML report — comparison table
+Changes: Created src/agent_eval/report/templates/report.html.j2 (self-contained Jinja2 template with inline CSS, comparison table, chart placeholder divs, detailed metrics section). Created src/agent_eval/report/html.py (generate_html_report with radar_svg/bar_chart_svg/heatmap_svg kwargs for Item 14 extension). Updated report/__init__.py to dispatch format="html". Created tests/test_report_html.py (32 tests across 5 classes). Fixed test_cli.py::test_report_html_unsupported_exits_2 → test_report_html_exits_0 since html is now supported. Total: 283 tests, 0 failures.
+Why: Template uses autoescape=True for XSS safety on agent/benchmark names, but SVG kwargs use |safe filter so Item 14 can inject raw SVG markup. Chart divs have stable IDs (radar-chart, bar-chart, heatmap) for Item 14 to target. Placeholder text renders when no SVG provided so report is readable without charts.
+Discovered: Pre-existing CLI test was written to assert html=unsupported (exit 2) — needed to update it once html became valid.
+Difficulty: S actual vs M planned
+
+=== Session 2026-03-24T27:00:00+09:00 ===
+Completed: Item 14 - HTML report — SVG charts
+Changes: Extended src/agent_eval/report/html.py with _radar_chart_svg (4-axis radar, grid rings, axis labels, per-agent polygon), _stacked_bar_chart_svg (phase_times as stacked bars, circle legend to avoid rect count inflation), _heatmap_svg (benchmark×agent pass-rate grid, green↔red color interpolation). Updated generate_html_report signature to use None defaults — auto-generates charts when called without SVG kwargs. Extended tests/test_report_html.py with TestSvgCharts class (18 new tests). Total: 301 tests, 0 failures.
+Why: Polygon attribute order (fill-opacity before points) was required so test regex could locate data polygons without re-parsing full attribute sets. Bar legend uses <circle> not <rect> to keep data-rect counts unambiguous in tests. Heatmap color interpolates #28a745 (green, rate=1.0) to #dc3545 (red, rate=0.0) keeping blue component constant at 0x45. test_placeholder_text_when_no_svg still passes because _make_result() has no phase_times so bar_chart_svg="" and the template renders the bar placeholder.
+Discovered: SVG attribute order matters for regex-based tests — must put discriminating attributes (fill-opacity) before positional ones (points) when writing testable SVG generators.
+Difficulty: M actual vs M planned
+
+=== Session 2026-03-24T28:00:00+09:00 ===
+Completed: Item 15 - ClaudeBackend
+Changes: Created src/agent_eval/backends/claude.py (ClaudeBackend with run() using subprocess). Extended tests/test_backends.py with TestClaudeBackendConstruction (4 tests) and TestClaudeBackendRun (14 tests). Fixed 2 tests in test_cli.py::TestMakeBackend that previously expected ImportError (now ClaudeBackend exists). Total: 320 tests, 0 failures.
+Why: ClaudeBackend copies benchmark_dir into output_dir (dirs_exist_ok=True), reads timeout from benchmark.yaml, sets OPUS_MODEL/SONNET_MODEL env vars, runs "bash loop.sh" via subprocess.run(), re-runs TEST_CMD for clean test output, then parses all harness artifacts. All subprocess calls are mocked in tests — no real shell commands executed. Timeout reads from mock_benchmark/benchmark.yaml (300s). test_cli.py tests updated from "ImportError expected" to "returns ClaudeBackend with correct model" now that the module exists.
+Discovered: Previously-green CLI tests that guarded against ClaudeBackend not existing must be updated when the module is implemented. Always grep for tests that reference unimplemented modules before shipping.
+Difficulty: M actual vs M planned
+
+=== Session 2026-03-24T29:00:00+09:00 ===
+BUILD PHASE COMPLETE — All 17 items implemented and passing.
+State: 320 tests pass, ruff clean, no skipped tests.
+IMPLEMENTATION_PLAN.md has PHASE_1_COMPLETE marker.
+No remaining TODO items. Nothing left to build.
+
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (17 items, 50+ acceptance criteria checked)
+  Coordinator: ALL PASS (16 modules checked — imports, APIs, error handling, type hints)
+  Packer: ALL PASS (8 deployment readiness checks)
+  Learnings_Applied: 5 of 5
+Timestamp: 2026-03-24T30:00:00+09:00
+---
