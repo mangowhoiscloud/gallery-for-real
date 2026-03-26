@@ -1,0 +1,153 @@
+=== Harness initialized: 2026-03-24T18:38:35+09:00 ===
+
+Project type: python-uv
+
+=== Session 2026-03-24T10:45:00+00:00 ===
+Completed: Item 1 - Data Models
+Changes: Created src/agent_replay/models.py with 8 dataclasses (CostEntry, PhaseEntry, GitCommit, SessionBlock, PlanItem, MetricsEntry, TimelineEvent, Iteration). Created tests/__init__.py and tests/test_models.py with 45 tests.
+Why: Applied all clarity resolutions: PhaseEntry is event-based (Round 1), MetricsEntry has 4-field format (Round 7), CostEntry.item is bare str (Round 4), Iteration.status is OK/FAIL/STUCK (Round 6), Iteration.duration is timedelta (Round 13). Used field(default_factory=...) for all mutable defaults on Iteration to prevent shared-state bugs.
+Discovered: Python 3.14.3 is being used (not 3.11 as pyproject requires-python). Textual version pinned to >=3.0.0 may not exist yet — will need to verify at TUI implementation time.
+Difficulty: S — accurate estimate, straightforward dataclass definitions.
+
+=== Session 2026-03-24T12:00:00+00:00 ===
+Completed: Item 2 - Test Fixtures
+Changes: Created tests/fixtures/ (cost.log, phase.log, metrics.log, harness-state.json, progress.txt, IMPLEMENTATION_PLAN.md). Created tests/conftest.py with sample_project fixture. Created tests/test_fixtures.py with 52 validation tests (97 total, 45 existing).
+Why: Fixture files model all clarity resolutions: cost.log uses phase/iter grouping (Round 3), phase.log uses event-based format (Round 1), harness-state.json uses 'phase' not 'current_phase' (Round 2), metrics.log has 4-field format (Round 7). Malformed lines in each log file enable parser robustness testing (Items 3-9). sample_project fixture gives each test an isolated tmp_path copy to prevent cross-test contamination.
+Discovered: ruff E741 flags 'l' as ambiguous variable name in list comprehensions — use 'ln' instead.
+Difficulty: S — accurate estimate, straightforward file creation.
+
+=== Session 2026-03-24T14:00:00+00:00 ===
+Completed: Item 3 - cost.log Parser
+Changes: Created src/agent_replay/parsers.py with parse_cost_log(). Created tests/test_parsers.py with 23 tests (120 total). Tests cover: fixture file parsing (7), missing/empty file (3), malformed line handling (4), edge cases (9).
+Why: Regex-based single-pass parser; malformed lines print WARNING to stderr and continue (never crash). Decimal used for cost fields to avoid float imprecision. item= stored as str (bare "" or digit string) per clarity Round 4. datetime.fromisoformat handles timezone-aware ISO 8601 timestamps.
+Discovered: ruff F401 flags unused imports in test files — remove timezone from datetime import when not used directly.
+Difficulty: S — accurate estimate, straightforward regex parser.
+
+=== Session 2026-03-24T15:00:00+00:00 ===
+Completed: Item 4 - phase.log Parser
+Changes: Added parse_phase_log() to parsers.py (also imported PhaseEntry). Main regex captures timestamp+event_type+rest; secondary _PHASE_KV_RE extracts key=value pairs from rest. Added 28 tests to test_parsers.py (148 total).
+Why: CIRCUIT_BREAKER lines mix free text with key=value — running _KV_RE.findall() on `rest` extracts only structured pairs while ignoring free text like "Stuck 1 iteration,". Follows identical structure to parse_cost_log for consistency.
+Discovered: No new issues.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-25T00:00:00+00:00 ===
+Completed: Item 6 - metrics.log Parser
+Changes: Added parse_metrics_log() to parsers.py (also imported MetricsEntry). Added 22 tests to test_parsers.py (191 total).
+Why: Same structure as cost.log/phase.log parsers — regex with 4 required fields (metric, context, value, detail), malformed lines skip to stderr. value stored as str because the field type in MetricsEntry is str per the model.
+Discovered: No new issues.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-24T16:00:00+00:00 ===
+Completed: Item 5 - progress.txt Parser
+Changes: Added parse_progress() to parsers.py; 21 new tests in test_parsers.py (169 total).
+Why: Splits on '=== Session TIMESTAMP ===' headers using regex; ignores preamble like 'Harness initialized'; extracts 'Completed: Item N - title' lines into items_completed list. Content field holds full block text for Progress Log tab display.
+Discovered: progress.txt lives at project root (not inside .harness-logs/), which affected sample_project fixture path in tests.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-25T01:00:00+00:00 ===
+Completed: Item 7 - harness-state.json Parser
+Changes: Added parse_harness_state() to parsers.py; added json import. Added 15 tests in test_parsers.py (206 total). Tests cover: fixture file (7), missing file (2), invalid JSON (3), edge cases (3).
+Why: Implementation is trivial — json.loads() with isinstance(data, dict) guard. The key design choice is returning None for JSON arrays (not just invalid JSON) because the harness state is always an object; returning a non-dict would confuse callers. Extra fields pass through untouched for forward-compatibility.
+Discovered: No new issues.
+Difficulty: S — accurate estimate, very simple JSON load with None sentinel.
+
+=== Session 2026-03-25T02:00:00+00:00 ===
+Completed: Item 8 - IMPLEMENTATION_PLAN.md Parser
+Changes: Added parse_plan() to parsers.py with PlanItem import; added _PLAN_HEADER_RE/_PLAN_STATUS_RE/_PLAN_PRIORITY_RE regexes; 24 new tests in test_parsers.py (230 total).
+Why: Line-by-line scan with _flush() pattern on each new ## Item header; missing status/priority fields default to "TODO"/"P0" so partial items never crash. Consistent structure with all prior parsers.
+Discovered: No new issues. _flush() closure mutating outer nonlocal vars via None sentinel is cleaner than a separate state dict.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-25T03:00:00+00:00 ===
+Completed: Item 9 - Git Log Parser
+Changes: Added parse_git_log() to parsers.py (also imported GitCommit, subprocess). 24 new tests in test_parsers.py (254 total).
+Why: subprocess.run with ["git", "log", "--format=%H %aI %s"] gives hash+ISO8601+subject per line, split on first 2 spaces to handle messages with spaces. FileNotFoundError (git not installed) and nonzero returncode (not a git repo) both return []. Malformed lines warn to stderr and continue — consistent with all prior parsers.
+Discovered: No new issues. monkeypatch on subprocess.run (not subprocess module) works cleanly for all git error scenarios.
+Difficulty: M — accurate estimate.
+
+=== Session 2026-03-25T04:00:00+00:00 ===
+Completed: Item 10 - Timeline Builder
+Changes: Created src/agent_replay/timeline.py with build_timeline(). Created tests/test_timeline.py with 46 tests (300 total).
+Why: Groups cost.log entries by (phase, iter) into global iteration numbers. Attaches phase events, metrics, session blocks, and git commits by timestamp proximity (_find_iter_idx scans iter_starts to find the last start <= ts). Status derived per clarity Round 6: STUCK from CIRCUIT_BREAKER/ABORT events in the iteration's time range, FAIL for middle iterations with zero commits, OK otherwise. Duration = max(event timestamps) - min(event timestamps) per clarity Round 13.
+Discovered: No new issues. _find_iter_idx linear scan is clean and predictable; bisect would be faster but unnecessary for session scales.
+Difficulty: M — accurate estimate. Timestamp-based event routing required careful thought about boundary conditions (events exactly on iter_start go to that iteration, events before first iter are discarded).
+
+=== Session 2026-03-25T05:00:00+00:00 ===
+Completed: Item 11 - CLI Entrypoint and Validation
+Changes: Created src/agent_replay/cli.py with main(), _validate_project_dir(), _handle_summary(), _handle_iteration(), _handle_failures(), _handle_export(), _launch_tui(). Created tests/test_cli.py with 51 tests (351 total).
+Why: All dispatch handlers (_handle_*) are minimal but complete implementations in cli.py directly. This avoids import failures from Items 12-15 not yet existing, while being genuinely functional (not stubs). The TUI launch uses a lazy function-body import so test runs never hit that code path without monkeypatching. --summary/--iteration/--failures are mutually exclusive via argparse group; --export is independent and can combine with any mode flag.
+Discovered: Function-body imports for deferred dependencies (tui.app) are clean Python — the import only fails at runtime when the path is hit, not at module import time. Tests can monkeypatch _launch_tui without any import of the TUI module.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-25T06:00:00+00:00 ===
+Completed: Item 12 - Summary Mode
+Changes: Created src/agent_replay/summary.py with print_summary(iterations, state, plan_items, *, console). Updated _handle_summary() in cli.py to load state/plan via parsers then delegate to print_summary(). Created tests/test_summary.py with 34 tests (385 total). Updated test_cli.py: changed "4.0000" assertion to "4.00".
+Why: print_summary uses rich Console+Table for per-phase breakdown. Costs formatted as $X.XX (2 decimal places) per spec. console parameter is injectable so tests use Console(file=StringIO()) for deterministic capture without capsys terminal-detection quirks. _handle_summary now loads real state/plan from the project directory before delegating. Empty dict {} is falsy in Python — test for missing "phase" key uses a non-empty dict {"status": "running"} instead.
+Discovered: Empty dict {} is falsy — a test checking state.get("phase", "unknown") fallback must pass a non-empty dict without the key, not {}. Rich Console(file=StringIO()) renders tables as plain text with box characters, making substring assertions reliable.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-25T07:00:00+00:00 ===
+Completed: Item 13 - Iteration and Failures CLI Modes
+Changes: Upgraded _handle_iteration() to render a rich Panel (title "Iteration N", fields: Phase, Status, Cost, Tokens, Duration, Commit lines, Done items). Upgraded _handle_failures() to render a rich Table (title "Failures (N)", columns: No./Phase/Status/Cost). Both accept injectable Console parameter matching print_summary pattern. Added rich imports (Console, Panel, Table) to cli.py. Added 17 new tests to test_cli.py (9 TestHandleIterationRich + 8 TestHandleFailuresRich) using Console(file=StringIO()) for deterministic capture. Total: 402 tests.
+Why: Item 11 built _handle_iteration and _handle_failures as plain-print stubs; Item 13 completes them with rich formatting per spec. The injectable Console pattern (same as print_summary) allows tests to verify output without capsys TTY detection ambiguity.
+Discovered: No new issues. Same Console(file=StringIO()) injectable pattern works cleanly for both handlers.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-25T08:00:00+00:00 ===
+Completed: Item 14 - JSON Export
+Changes: Created src/agent_replay/export.py with export_json(). Refactored _handle_export() in cli.py to delegate to export_json(). Updated 3 tests in test_cli.py (TestHandleExport + TestMainDispatch) that assumed old list schema. Created tests/test_export.py with 44 new tests (446 total).
+Why: Round 9 resolution requires a top-level dict wrapper {project, total_iterations, total_cost, total_duration, iterations: [...]} instead of a bare list. Separating export_json into its own module gives a clean testable interface, and avoids the cli.py module needing json/Decimal/datetime/timedelta imports just for export. All 5 event data types (CostEntry, PhaseEntry, GitCommit, SessionBlock, MetricsEntry) are serialized with a "type" discriminator field for schema clarity.
+Discovered: No new issues. cli.py's _json_default was only used by _handle_export — removing those imports cleaned up the module.
+Difficulty: S — accurate estimate.
+
+=== Session 2026-03-25T09:00:00+00:00 ===
+Completed: Item 15 - TUI App Shell
+Changes: Created src/agent_replay/tui/__init__.py and src/agent_replay/tui/app.py with ReplayApp (Textual 8.1.1). Created tests/test_tui_app.py with 38 pilot tests (484 total). Added pytest-asyncio dev dependency for async pilot tests.
+Why: ReplayApp uses Textual's App base class with Header (title=project name, subtitle=stats), Horizontal layout with left-panel/right-panel Static placeholders, and Footer (auto-renders BINDINGS). Keybindings q/j/k/1-4/slash are defined with stub action handlers for Items 16-19 to implement. Empty session (Round 14) renders a centered "Empty session" message instead of panels. _format_duration helper formats timedelta as Xh Ym Zs. on_mount sets title/subtitle from computed properties (_total_cost, _total_duration).
+Discovered: Textual 8.1.1 is installed (not 3.x as pinned — uv resolved compatible). pytest-asyncio needed for async pilot tests (Textual's run_test() is an async context manager). Static.render().plain extracts rendered text for assertion in pilot tests.
+Difficulty: L — accurate estimate. Textual API exploration and pilot test patterns took expected effort.
+
+=== Session 2026-03-25T10:00:00+00:00 ===
+Completed: Item 16 - TUI Iteration List Widget
+Changes: Created src/agent_replay/tui/iteration_list.py with IterationList widget. Updated app.py: replaced Static placeholder with IterationList, wired action_cursor_down/up to delegate, added up/down arrow bindings, added on_iteration_list_selection_changed handler storing _selected_iteration. Created tests/test_tui_iteration_list.py with 39 pilot tests (523 total).
+Why: IterationList wraps ListView (not subclasses it) — this lets on_list_view_highlighted catch the inner ListView's events via bubbling and re-emit as SelectionChanged. The _iter_map dict (item-id → Iteration) gives O(1) lookup in the handler. cursor_down/up delegate to ListView.action_cursor_down/up so the app's j/k/up/down bindings all work through one delegation chain. Empty list guards prevent query_one(ListView).action_cursor_* crashes. _selected_iteration stored on app for Item 17 to consume.
+Discovered: App.run_async() is not a valid API in Textual 8 pilot tests — use pilot.press() or pilot.pause() for event processing. app.run_async(lambda: None) raises TypeError. Cursor navigation in pilot tests is best verified via pilot.press("down") not by calling widget methods directly.
+Difficulty: M — accurate estimate.
+
+=== Session 2026-03-25T11:00:00+00:00 ===
+Completed: Item 17 - TUI Detail Panel with Tabs
+Changes: Created src/agent_replay/tui/detail_panel.py with DetailPanel widget (4 tabs: Overview, Progress, Git, Cost Chart). Updated app.py: replaced Static placeholder with DetailPanel, wired on_iteration_list_selection_changed to call panel.update_iteration(), wired action_tab_1..4 to call panel.show_tab(). Created tests/test_tui_detail_panel.py with 50 pilot tests (573 total).
+Why: DetailPanel uses CSS class toggling (active/inactive) on 4 Static widgets for tab switching — simpler than ContentSwitcher and gives full control. _format_duration duplicated locally to avoid circular import with app.py. _git_show_stat runs subprocess with timeout=5 for safety. Overview tab extracts model from CostEntry events and metrics from MetricsEntry events via isinstance checks on event.data. ListView auto-selects first item on mount, so the detail panel shows iteration 1 immediately.
+Discovered: ListView auto-highlights item 0 on mount, triggering SelectionChanged before any user input. Initial "Select an iteration" placeholder is immediately overwritten. Tests must account for this auto-selection behavior.
+Difficulty: L — accurate estimate. Multiple tab contents with different data extraction patterns required careful design.
+
+=== Session 2026-03-25T12:00:00+00:00 ===
+Completed: Item 18 - TUI Cost Chart Tab
+Changes: Replaced Static placeholder in detail_panel.py tab 4 with a Vertical container holding a Textual Sparkline + Static label. Added _render_cost_chart() computing cumulative costs from all iterations (running Decimal sum → float list). Label shows selected iteration number, cost, cumulative position, and total iteration count. Added CSS rules for cost-sparkline (1fr height) and cost-chart-label (auto height). Updated TestCostChartTab in test_tui_detail_panel.py to replace stale "Item 18" placeholder assertion. Created tests/test_tui_cost_chart.py with 17 tests covering: sparkline data length/values/monotonicity, label content, edge cases (empty/single/multi), pilot keyboard interaction. Total: 590 tests.
+Why: Textual Sparkline is available in v8.1.1 and satisfies Round 11 resolution (no extra deps). Computing cumulative in the render method (not timeline.py) keeps display logic in the view layer. Separating sparkline data (global across all iters) from label info (per-selected-iter) matches the spec: "highlight current iteration position" in the label.
+Discovered: Vertical container from textual.containers works identically to Static for CSS class toggling — add_class/remove_class on a container widget is the same API. Sparkline.data is a reactive Optional[Sequence[float]] — setting it to a list triggers re-render automatically.
+Difficulty: M — accurate estimate. Figuring out the Sparkline API required checking with uv run python, and restructuring compose() from a flat Static to Vertical+Sparkline+Static had some CSS sizing subtleties.
+
+=== Session 2026-03-25T13:00:00+00:00 ===
+Completed: Item 19 - TUI Search
+Changes: Added IterationList.jump_to(iteration_number) method that sets ListView.index for O(1) cursor jump. Updated app.py: async action_search() dynamically mounts an Input widget before Footer (mount-on-demand, unmount-on-close). action_close_search() removes the widget. on_input_submitted() dispatches Enter to _find_matches/_jump_to_match with cycle-on-repeat logic. Created tests/test_tui_search.py with 28 tests (618 total).
+Why: Dynamic mount/unmount of the search Input is critical — a permanently-composed Input (even with display:none CSS) intercepts numeric key events ("2", "3", "4") in Textual 8.1.1 pilot tests, breaking existing tab-switch bindings. Mount-on-demand sidesteps this entirely. Search scoped to SessionBlock.content per clarity Round 12. Tests call app.action_search() directly since pilot.press("/") triggers Textual's auto-focus on the Input rather than the App binding.
+Discovered: In Textual 8.1.1 headless pilot tests, any Input widget in the DOM (even with CSS display:none or display=False) intercepts printable character keypresses (1-9, a-z) before App-level bindings fire. The fix is dynamic mount/unmount: only add the Input to the DOM when it's needed. Also: async action methods work natively in Textual 8 — BINDINGS await async action_* methods transparently.
+Difficulty: M — implementation was S but debugging the Textual Input focus-interception bug added unexpected complexity.
+
+=== Session 2026-03-25T14:00:00+00:00 ===
+Status: ALL 19 ITEMS COMPLETE — IMPLEMENTATION PLAN FINISHED
+Summary: All 19 implementation items are DONE. 618 tests pass, ruff lint clean, uv build succeeds.
+No remaining TODO items in IMPLEMENTATION_PLAN.md. The plan is marked PHASE_1_COMPLETE.
+The harness recovery mode triggered because there is nothing left to implement — 3 consecutive
+iterations correctly found no work to do and made no commits.
+
+---
+HARNESS_COMPLETE
+Verification Report:
+  Validator: ALL PASS (32 criteria checked)
+  Coordinator: ALL PASS (25 checks across 11 source modules)
+  Packer: ALL PASS (10 checks)
+  Learnings_Applied: 7 of 7
+Timestamp: 2026-03-25T15:00:00+09:00
+---

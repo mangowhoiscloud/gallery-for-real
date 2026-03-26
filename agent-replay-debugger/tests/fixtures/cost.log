@@ -1,0 +1,6 @@
+2026-03-24T09:00:00+00:00 phase=socratic iter=1 model=opus in=15 out=8500 cost=$0.6384 cumulative=$0.6384 item=
+2026-03-24T09:30:00+00:00 phase=plan iter=1 model=opus in=10 out=9200 cost=$0.6903 cumulative=$1.3287 item=
+2026-03-24T10:00:00+00:00 phase=build iter=1 model=sonnet in=25 out=10000 cost=$0.1501 cumulative=$1.4788 item=1
+this line is malformed and should be skipped gracefully
+2026-03-24T10:30:00+00:00 phase=build iter=2 model=sonnet in=20 out=9500 cost=$0.1426 cumulative=$1.6214 item=1
+2026-03-24T11:00:00+00:00 phase=build iter=3 model=sonnet in=22 out=8000 cost=$0.1201 cumulative=$1.7415 item=2

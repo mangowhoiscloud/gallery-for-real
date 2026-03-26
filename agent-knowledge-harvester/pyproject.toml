@@ -1,0 +1,30 @@
+[project]
+name = "agent-knowledge-harvester"
+version = "0.1.0"
+description = "Extract reusable patterns and skills from completed agent sessions"
+requires-python = ">=3.11"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+agent-harvest = "agent_harvest.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_harvest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.7",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"

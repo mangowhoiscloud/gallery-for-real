@@ -19,8 +19,10 @@
 | [agent-eval-suite](agent-eval-suite/) | Python 3.11 + uv | AI 에이전트 벤치마크 러너 | 스펙 1개 + pyproject.toml + CLAUDE.md | 17항목 | 283 tests passed |
 | [agent-cost-analyzer](agent-cost-analyzer/) | Python 3.11 + uv | 하네스 실행 비용 분석 대시보드 | 스펙 1개 + pyproject.toml + CLAUDE.md | 14항목 | 335 tests passed |
 | [prompt-version-control](prompt-version-control/) | Python 3.11 + uv | 프롬프트 버전 관리 + A/B 비교 | 스펙 1개 + pyproject.toml + CLAUDE.md | 14항목 | 248 tests passed |
+| [agent-replay-debugger](agent-replay-debugger/) | Python 3.11 + uv + Textual TUI | 에이전트 세션 리플레이 디버거 | 스펙 1개 + pyproject.toml + CLAUDE.md | 19항목 | 618 tests passed |
+| [agent-knowledge-harvester](agent-knowledge-harvester/) | Python 3.11 + uv + pyyaml | 세션 패턴/스킬 자동 추출 CLI | 스펙 1개 + pyproject.toml + CLAUDE.md | 16항목 | 577 tests passed |
 
-**총 테스트: 2,640 passed** (11개 프로젝트)
+**총 테스트: 3,835 passed** (13개 프로젝트)
 
 ## 이 프로젝트들은 어떤 자연어 지시로 만들어졌나?
 
@@ -43,6 +45,9 @@
 
 ### 6단계: agent-eval-suite / agent-cost-analyzer / prompt-version-control
 > "하네스 엔지니어로서 에이전트 관련 프로젝트에 도움이 될만한 생산 아이디어가 있을까?" → 3가지 제안 → "세 가지 모두 진행해봐."
+
+### 7단계: agent-replay-debugger / agent-knowledge-harvester
+> "최근 모델/하네스 리서치를 참고해서 더 구현해볼 사안 있을까? 허깅 페이스 등을 참고해서 조사해볼래?" → 15가지 조사 → "1, 2번 진행하자. 프로덕션급 완성도와 가벼움, 심플함을 우선가치로. 코드엔 직접 손대지 말고."
 
 ## 진행 과정 (Step by Step)
 
